@@ -17,7 +17,7 @@
     --rowh:46px; --bandh:34px;
     --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
   }
-  /* graphite, not black — warm enough to read for hours */
+  /* graphite, not black, warm enough to read for hours */
   :root[data-theme=dark]{
     --bg:#181b21; --ink:#eef1f5; --dim:#a3aab6; --dim2:#767e8b;
     --line:#2e333c; --hair:#252a32;
@@ -46,7 +46,7 @@
   .dot.w{background:#b8860b;animation:none} .dot.e{background:var(--dn);animation:none}
   @keyframes b{0%,100%{opacity:1}50%{opacity:.25}}
 
-  /* one tile grid for every readout — 4 up on desktop, 2x2 on a phone, never a squashed row.
+  /* one tile grid for every readout: 4 up on desktop, 2x2 on a phone, never a squashed row.
      1px gaps over a line-coloured backdrop draw the dividers, so no per-cell border maths. */
   .bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:1px;
        background:var(--line);border:1px solid var(--line);border-radius:12px;
@@ -91,13 +91,13 @@
   .row .r{text-align:right;color:var(--dim)}
   .row:hover{filter:brightness(.975)}
   .row.open{box-shadow:inset 0 0 0 2px var(--spot);z-index:2}
-  /* two SPX strikes can round to the same SPY strike — dim the looser of the pair */
+  /* two SPX strikes can round to the same SPY strike, so dim the looser of the pair */
   .row.far span:first-child,.row.far .r{opacity:.42}
   .row.best span:first-child{font-weight:700}
   .row.best span:first-child::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
         background:var(--spot);margin-left:7px;vertical-align:middle}
 
-  /* spot band — reserves its own height so nothing is ever covered */
+  /* spot band reserves its own height so nothing is ever covered */
   .spot{height:var(--bandh);position:relative;z-index:3;background:var(--bg);
         border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
   .spot .slide{position:absolute;inset:0;transform:translateY(var(--o,0px));
@@ -145,12 +145,12 @@
   </header>
 
   <div class="bar">
-    <div class="t"><span class="k">SPX</span><span class="v" id="spxV">—</span>
+    <div class="t"><span class="k">SPX</span><span class="v" id="spxV">–</span>
       <span class="m"><span id="spxC"></span><span id="spxA"></span></span></div>
-    <div class="t"><span class="k">SPY</span><span class="v" id="spyV">—</span>
+    <div class="t"><span class="k">SPY</span><span class="v" id="spyV">–</span>
       <span class="m"><span id="spyC"></span><span id="spyA"></span></span></div>
     <div class="t"><span class="k">RATIO</span>
-      <input id="ratioIn" inputmode="decimal" placeholder="—" autocomplete="off" aria-label="SPX to SPY ratio">
+      <input id="ratioIn" inputmode="decimal" placeholder="–" autocomplete="off" aria-label="SPX to SPY ratio">
       <span class="m" id="ratioM"></span></div>
     <div class="t"><span class="k">DEPTH</span>
       <select id="n" aria-label="Strikes each side of spot">
@@ -167,7 +167,7 @@
   </div>
 
   <p class="foot">Green above spot, red below. Tap a strike to price it. Two SPX strikes can round to one
-     SPY strike — the dotted row is the closer pair, the dimmed one the looser. No option prices: no free
+     SPY strike; the dotted row is the closer pair, the dimmed one the looser. No option prices: no free
      feed quotes them. Quotes via Yahoo, 3s poll; verify on your broker.</p>
 </main>
 
@@ -175,7 +175,7 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const YQ = s => `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(s)}?interval=1m&range=1d`;
-// Yahoo sends no CORS headers — relay chain with failover.
+// Yahoo sends no CORS headers, so relay chain with failover.
 const RELAYS = [
   u => `https://api.cors.lol/?url=${encodeURIComponent(u)}`,
   u => `https://proxy.cors.sh/${u}`,
@@ -225,7 +225,7 @@ function paint(k, q, prev){
 const secsOld = q => Math.max(0, Math.round((Date.now() - q.t)/1000));
 const said = s => s < 60 ? s + 's ago' : s < 3600 ? Math.floor(s/60) + 'm ago' : Math.floor(s/3600) + 'h ago';
 
-// how old the exchange says the print is — not how long ago we polled
+// how old the exchange says the print is, not how long ago we polled
 function ages(){
   for(const k of ['spx','spy']){
     const q = S[k], el = $(k+'A');
@@ -250,7 +250,7 @@ async function tick(){
     $('dot').className = 'dot' + (live ? '' : ' w');
     $('stat').textContent = (live ? 'LIVE' : spy.st || 'CLOSED') + ' ' + new Date().toLocaleTimeString('en-US', ET) + ' ET';
     // SPX options keep trading overnight on Cboe GTH; SPY options and ^GSPC do not. Cross-quotes
-    // taken then are two different timestamps, and no ratio reconciles them — say so.
+    // taken then are two different timestamps, and no ratio reconciles them, so say so.
     $('warn').classList.toggle('on', !live);
     if(!live) $('warnT').innerHTML = `<b>Session closed.</b> SPX options trade overnight (Cboe GTH),
       SPY options and the ${'^'}GSPC print do not. An SPX quote now is hours newer than its SPY pair,
@@ -320,7 +320,7 @@ function row(k, best){
 // Exact part: an SPX option's payoff divided by the ratio IS an SPY option at strike k/ratio.
 // Inexact part: the listed SPY strike is up to 2.5 SPX points (~0.25 SPY) away, and no model-free
 // value exists for that shift. But |dPremium/dStrike| <= 1 always, so the listed premium is pinned
-// inside a band of width |gap| — a bound, not a guess. Calls fall as strike rises, puts rise.
+// inside a band of width |gap|. A bound, not a guess. Calls fall as strike rises, puts rise.
 function bounds(spyPrem, gap, isCall){
   const other = spyPrem - (isCall ? gap : -gap);
   return [Math.min(spyPrem, other), Math.max(spyPrem, other)];
@@ -328,7 +328,7 @@ function bounds(spyPrem, gap, isCall){
 
 // --- the gap estimate, tightened -------------------------------------------
 // The bound above is worst-case. The true slope is dC/dK = -N(d2) (calls) or
-// +N(-d2) (puts) — and the premium you typed already implies the vol that
+// +N(-d2) (puts), and the premium you typed already implies the vol that
 // fixes it, so no options feed is needed. Solve sigma, read the slope, walk
 // the gap. r = q = 0: over a few hours of 0DTE that is under a tenth of a cent.
 const ncdf = x => {                                   // A&S 7.1.26, |err| < 1.5e-7
@@ -381,7 +381,7 @@ function price(k, n){
   }
   return o;
 }
-const fmtL = o => o.spy == null ? '—'
+const fmtL = o => o.spy == null ? '–'
   : o.est != null ? '$' + f(o.est)
   : '$' + f(o.b[0]) + '–$' + f(o.b[1]);
 
@@ -393,10 +393,10 @@ function panel(k){
       <input id="prem" inputmode="decimal" placeholder="0.00" value="${raw}" autocomplete="off">
     </div>
     <div class="grid">
-      <div><span class="k">SPY @ ${f(o.e)}</span><span class="v" id="out">${o.spy != null ? '$'+f(o.spy) : '—'}</span></div>
+      <div><span class="k">SPY @ ${f(o.e)}</span><span class="v" id="out">${o.spy != null ? '$'+f(o.spy) : '–'}</span></div>
       <div><span class="k">SPY @ ${o.listed}</span><span class="v" id="outL">${fmtL(o)}</span></div>
       <div><span class="k">STRIKE GAP</span><span class="v s">${o.gap>=0?'+':''}${f(o.gap)}</span></div>
-      <div><span class="k">0DTE IV</span><span class="v s" id="outIV">${o.iv != null ? f(o.iv*100,1)+'%' : '—'}</span></div>
+      <div><span class="k">0DTE IV</span><span class="v s" id="outIV">${o.iv != null ? f(o.iv*100,1)+'%' : '–'}</span></div>
     </div>
     <p class="fine" id="outNote">${note(o)}</p>
   </div>`;
@@ -409,7 +409,7 @@ function note(o){
   const tail = o.est != null
     ? `$${f(o.spy)} is exact for the equivalent ${f(o.e)} strike. For the listed ${o.listed}
        ${o.isCall?'call':'put'}, your premium implies ${f(o.iv*100,1)}% vol, so the strike slope is
-       ${f(Math.abs(o.est-o.spy)/Math.abs(o.gap||1),2)} — that walks the gap to $${f(o.est)}
+       ${f(Math.abs(o.est-o.spy)/Math.abs(o.gap||1),2)}, which walks the gap to $${f(o.est)}
        (bound: $${f(o.b[0])}–$${f(o.b[1])}).`
     : `$${f(o.spy)} is exact for the equivalent ${f(o.e)} strike. No vol solves that premium at this
        hour, so the listed ${o.listed} only gets its model-free band, $${f(o.b[0])}–$${f(o.b[1])}.`;
@@ -430,9 +430,9 @@ $('ladder').addEventListener('input', e => {
   if(e.target.id !== 'prem') return;
   S.prem[S.open] = e.target.value;
   const o = price(S.open, parseFloat(e.target.value));
-  $('out').textContent = o.spy != null ? '$' + f(o.spy) : '—';
+  $('out').textContent = o.spy != null ? '$' + f(o.spy) : '–';
   $('outL').textContent = fmtL(o);
-  $('outIV').textContent = o.iv != null ? f(o.iv*100,1) + '%' : '—';
+  $('outIV').textContent = o.iv != null ? f(o.iv*100,1) + '%' : '–';
   $('outNote').innerHTML = note(o);
 });
 
