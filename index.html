@@ -34,30 +34,45 @@
   }
   main{max-width:680px;margin:0 auto}
 
-  header{display:flex;align-items:center;gap:24px;padding:20px 2px 14px}
+  header{display:flex;align-items:center;gap:12px;padding:18px 2px 13px}
   .mark{font:700 12px/1 var(--mono);letter-spacing:.24em}
-  .theme{margin-right:auto;background:none;border:1px solid var(--line);border-radius:999px;
+  .live{margin-left:auto;display:flex;align-items:center;gap:7px;
+        font:600 10px/1 var(--mono);letter-spacing:.1em;color:var(--dim);white-space:nowrap}
+  .theme{background:none;border:1px solid var(--line);border-radius:999px;
          width:28px;height:28px;cursor:pointer;color:var(--dim);font-size:13px;line-height:1;
-         display:grid;place-items:center;padding:0}
+         display:grid;place-items:center;padding:0;flex:none}
   .theme:hover{border-color:var(--dim2);color:var(--ink)}
-  .q{position:relative}
-  .q .lbl{font:700 10px/1 var(--mono);letter-spacing:.16em;color:var(--dim2)}
-  .q .age{font:500 9.5px/1 var(--mono);letter-spacing:.06em;color:var(--dim2);margin-top:5px}
-  .q .age.stale{color:#b8860b}
-  .q .val{font:600 22px/1.25 var(--mono);letter-spacing:-.03em;margin-top:4px;transition:color .5s}
-  .q .val.up{color:var(--up);transition:none} .q .val.dn{color:var(--dn);transition:none}
-  .q .chg{font:500 11.5px/1 var(--mono)}
-  .chg.u{color:var(--up)} .chg.d{color:var(--dn)}
-
-  .strip{display:flex;align-items:center;gap:14px;padding:0 2px 10px;
-         font:600 10.5px/1 var(--mono);letter-spacing:.1em;color:var(--dim)}
-  .strip .r{margin-left:auto;display:flex;align-items:center;gap:6px}
-  .strip label{display:flex;align-items:center;gap:5px;color:var(--dim2)}
-  .strip select{font:inherit;color:var(--dim);background:var(--bg);border:1px solid var(--line);
-        border-radius:6px;padding:3px 5px;cursor:pointer}
-  .dot{width:6px;height:6px;border-radius:50%;background:var(--up);animation:b 2.4s infinite}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--up);animation:b 2.4s infinite;flex:none}
   .dot.w{background:#b8860b;animation:none} .dot.e{background:var(--dn);animation:none}
   @keyframes b{0%,100%{opacity:1}50%{opacity:.25}}
+
+  /* one tile grid for every readout — 4 up on desktop, 2x2 on a phone, never a squashed row.
+     1px gaps over a line-coloured backdrop draw the dividers, so no per-cell border maths. */
+  .bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:1px;
+       background:var(--line);border:1px solid var(--line);border-radius:12px;
+       overflow:hidden;margin-bottom:14px}
+  .t{background:var(--bg);padding:11px 14px 12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+  .t .k{font:700 9.5px/1 var(--mono);letter-spacing:.14em;color:var(--dim2)}
+  .t .v{font:600 21px/1 var(--mono);letter-spacing:-.03em;transition:color .5s}
+  .t .v.up{color:var(--up);transition:none} .t .v.dn{color:var(--dn);transition:none}
+  .t .m{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+        font:500 11px/1.35 var(--mono);color:var(--dim2);min-height:11px}
+  .t .m .u{color:var(--up)} .t .m .d{color:var(--dn)} .t .m .stale{color:#b8860b}
+  /* the two editable tiles read as tiles, not as a form bolted on */
+  .t input,.t select{font:600 21px/1 var(--mono);letter-spacing:-.03em;color:var(--ink);
+        background:none;border:0;border-bottom:1.5px dashed var(--line);border-radius:0;
+        padding:0 0 3px;width:100%;outline:none;-webkit-appearance:none;appearance:none;cursor:pointer}
+  .t input{cursor:text}
+  .t input:focus,.t select:focus{border-bottom-color:var(--spot);border-bottom-style:solid}
+  .t input.man{color:var(--spot)}
+  .t .m button{background:none;border:0;padding:0;font:inherit;color:var(--spot);
+        cursor:pointer;text-decoration:underline}
+
+  .warn{display:none;gap:9px;padding:10px 13px;margin-bottom:14px;border-radius:10px;
+        background:color-mix(in srgb,#b8860b 12%,var(--bg));color:var(--ink);
+        font:400 11.5px/1.5 -apple-system,system-ui,sans-serif}
+  .warn.on{display:flex}
+  .warn b{font-weight:600}
 
   .chain{border:1px solid var(--line);border-radius:12px;overflow:hidden;position:relative}
   .hd,.row{display:grid;grid-template-columns:1fr 132px 1fr;align-items:center}
@@ -109,10 +124,12 @@
   .fine{margin-top:13px;font:400 11.5px/1.55 -apple-system,system-ui,sans-serif;color:var(--dim)}
   .foot{padding:13px 2px 0;font:400 11px/1.6 -apple-system,system-ui,sans-serif;color:var(--dim2)}
   @media(max-width:430px){
-    body{padding:0 11px 40px} header{gap:14px} .q .val{font-size:19px}
+    body{padding:0 11px 40px} header{gap:10px;padding-top:15px}
+    .t{padding:10px 12px} .t .v,.t input,.t select{font-size:18px}
     .hd,.row{grid-template-columns:1fr 104px 1fr}
     .row{font-size:15.5px} .row > span,.hd span{padding:0 11px}
     .hd span{padding:12px 11px} .spot .p{font-size:12px;padding:5px 10px}
+    .grid{grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:13px}
   }
   @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -121,24 +138,35 @@
 <main>
   <header>
     <span class="mark">TENFOLD</span>
+    <span class="live"><span class="dot" id="dot"></span><span id="stat">…</span></span>
     <button class="theme" id="theme" title="Toggle theme" aria-label="Toggle light or dark theme">◐</button>
-    <div class="q"><div class="lbl">SPX</div><div class="val" id="spxV">—</div><div class="chg" id="spxC">—</div><div class="age" id="spxA"></div></div>
-    <div class="q"><div class="lbl">SPY</div><div class="val" id="spyV">—</div><div class="chg" id="spyC">—</div><div class="age" id="spyA"></div></div>
   </header>
 
-  <div class="strip">
-    <span id="ratio">—</span>
-    <label>±<select id="n"><option>5<option>8<option>12<option>20<option>30<option>50</select> STRIKES</label>
-    <span class="r"><span class="dot" id="dot"></span><span id="stat">…</span></span>
+  <div class="bar">
+    <div class="t"><span class="k">SPX</span><span class="v" id="spxV">—</span>
+      <span class="m"><span id="spxC"></span><span id="spxA"></span></span></div>
+    <div class="t"><span class="k">SPY</span><span class="v" id="spyV">—</span>
+      <span class="m"><span id="spyC"></span><span id="spyA"></span></span></div>
+    <div class="t"><span class="k">RATIO</span>
+      <input id="ratioIn" inputmode="decimal" placeholder="—" autocomplete="off" aria-label="SPX to SPY ratio">
+      <span class="m" id="ratioM"></span></div>
+    <div class="t"><span class="k">DEPTH</span>
+      <select id="n" aria-label="Strikes each side of spot">
+        <option value="5">± 5<option value="8">± 8<option value="12">± 12
+        <option value="20">± 20<option value="30">± 30<option value="50">± 50</select>
+      <span class="m">strikes each side</span></div>
   </div>
+
+  <div class="warn" id="warn"><span>⚠</span><span id="warnT"></span></div>
 
   <div class="chain">
     <div class="hd"><span>SPY STRIKE</span><span class="c">SPX STRIKE</span><span class="r">SPY EXACT EQUIV</span></div>
     <div id="ladder"></div>
   </div>
 
-  <p class="foot">Green above spot, red below. No prices — no free feed quotes options faster than once a second.
-     Tap a strike to price it. Quotes via Yahoo, 3s poll; verify on your broker.</p>
+  <p class="foot">Green above spot, red below. Tap a strike to price it. Two SPX strikes can round to one
+     SPY strike — the dotted row is the closer pair, the dimmed one the looser. No option prices: no free
+     feed quotes them. Quotes via Yahoo, 3s poll; verify on your broker.</p>
 </main>
 
 <script>
@@ -173,8 +201,11 @@ async function quote(sym){
 }
 
 const f = (n,d=2) => n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
-const ratio = () => S.spx.px / S.spy.px;
 // SPY trails SPX by accrued dividends, so the ratio sits near 10.03, not 10.
+const spotRatio = () => S.spx.px / S.spy.px;
+// ...but spot is only right while both legs quote live. Overnight, ^GSPC is frozen at the
+// close while SPX options keep trading, so the honest fix is a knob, not a better formula.
+const ratio = () => S.rOv ?? spotRatio();
 const equiv = k => k / ratio();
 
 function paint(k, q, prev){
@@ -185,7 +216,7 @@ function paint(k, q, prev){
     v.classList.add(q.px > prev ? 'up' : 'dn');
   }
   const d = q.px - q.prev, u = d >= 0;
-  c.className = 'chg ' + (u ? 'u' : 'd');
+  c.className = u ? 'u' : 'd';
   c.textContent = `${u?'+':''}${f(d)}  ${u?'+':''}${f(d/q.prev*100)}%`;
 }
 
@@ -208,11 +239,17 @@ async function tick(){
     const [spx, spy] = await Promise.all([quote('^GSPC'), quote('SPY')]);
     S.spx = spx; S.spy = spy;
     paint('spx', spx, a); paint('spy', spy, b);
-    $('ratio').textContent = 'RATIO ' + f(ratio(), 4);
-    ages();
+    ages(); showRatio();
     const live = spy.st === 'REGULAR';
     $('dot').className = 'dot' + (live ? '' : ' w');
     $('stat').textContent = (live ? 'LIVE' : spy.st || 'CLOSED') + ' ' + new Date().toLocaleTimeString('en-US', ET) + ' ET';
+    // SPX options keep trading overnight on Cboe GTH; SPY options and ^GSPC do not. Cross-quotes
+    // taken then are two different timestamps, and no ratio reconciles them — say so.
+    $('warn').classList.toggle('on', !live);
+    if(!live) $('warnT').innerHTML = `<b>Session closed.</b> SPX options trade overnight (Cboe GTH),
+      SPY options and the ${'^'}GSPC print do not. An SPX quote now is hours newer than its SPY pair,
+      so converted premiums will not match your broker. Set RATIO by hand to calibrate against a
+      strike you can see on both.`;
     render();
   }catch(e){
     $('dot').className = 'dot e'; $('stat').textContent = 'RECONNECTING';
@@ -398,6 +435,28 @@ const theme = t => {
   $('theme').textContent = t === 'dark' ? '☀' : '◐';
   localStorage.tenfoldTheme = t;
 };
+// RATIO tile: shows the live spot ratio, accepts an override, offers its own undo
+function showRatio(){
+  const el = $('ratioIn'), man = S.rOv != null;
+  el.classList.toggle('man', man);
+  if(document.activeElement !== el) el.value = f(ratio(), 4);
+  $('ratioM').innerHTML = man
+    ? `manual · <button id="ratioAuto" type="button">auto ${f(spotRatio(),4)}</button>`
+    : 'live spot ratio';
+}
+$('ratioIn').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  S.rOv = Number.isFinite(v) && v > 5 && v < 20 ? v : null;   // outside that, it is a typo
+  if(S.rOv != null) localStorage.tenfoldRatio = S.rOv; else delete localStorage.tenfoldRatio;
+  if(S.spx){ showRatio(); render(); }
+});
+$('ratioM').addEventListener('click', e => {
+  if(e.target.id !== 'ratioAuto') return;
+  S.rOv = null; delete localStorage.tenfoldRatio;
+  if(S.spx){ showRatio(); render(); }
+});
+if(localStorage.tenfoldRatio) S.rOv = +localStorage.tenfoldRatio;
+
 $('n').value = localStorage.tenfoldN || '12';
 $('n').onchange = () => { localStorage.tenfoldN = $('n').value; centred = false; if(S.spx) render(); };
 
@@ -426,6 +485,11 @@ window.tenfoldCheck = () => {
   console.assert(Math.abs(eq(7430)-741) < Math.abs(eq(7425)-741), 'best pair picks the nearer strike');
   console.assert(new Date('2026-07-29T14:06:00Z').toLocaleTimeString('en-US',ET) === '10:06:00', 'NYC clock');
   console.assert(document.querySelectorAll('.row').length === fitN()*2 + 1, 'ladder honours the picker');
+  // manual ratio wins over spot, and clearing it hands control back
+  const keep = S.rOv;
+  S.rOv = 10.05; console.assert(ratio() === 10.05 && equiv(7405) === 7405/10.05, 'override applies');
+  S.rOv = null;  console.assert(ratio() === spotRatio(), 'cleared override falls back to spot');
+  S.rOv = keep;
   // listed strike above the exact equiv: a call gets cheaper, a put dearer, by at most the gap
   const near = (b, lo, hi) => Math.abs(b[0]-lo) < 1e-9 && Math.abs(b[1]-hi) < 1e-9;
   console.assert(near(bounds(0.818,  0.25, true ), 0.568, 0.818), 'call bound down');
