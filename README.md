@@ -6,17 +6,20 @@
 
 SPY is not SPX ÷ 10 — and on 0DTE that difference is a strike.
 
-### → **[Open it](https://ratterau.github.io/tenfold/)** ←
+Try it: **https://ratterau.github.io/tenfold/**
 
-*No install, no signup, no key. It's one HTML file.*
+*One HTML file. No install, no signup, no key.*
 
 </div>
 
 ---
 
 <div align="center">
-  <img src="docs/chain.png" width="470" alt="TENFOLD strike chain with live spot line">
+  <img src="docs/chain.png" width="440" alt="TENFOLD strike chain in light mode">
+  <img src="docs/dark.png" width="440" alt="TENFOLD strike chain in dark mode">
 </div>
+
+<div align="center"><sub>Light and dark, toggled with the button next to the wordmark. The ladder sizes itself to your screen — as many strikes each side as fit, never a scrollbar.</sub></div>
 
 ---
 
@@ -30,7 +33,9 @@ TENFOLD does the division for you, against the live ratio, continuously.
 
 ## Reading the screen
 
-**Strikes ascend** down the page, the way a broker chain reads. **Green above spot, red below** — the side you're on is legible from across the room.
+**Strikes ascend** down the page, the way a broker chain reads. **Green above spot, red below** — the side you're on is legible from across the room. The ladder measures your viewport and fills it with as many strikes as fit, so nothing important is ever one scroll below the fold.
+
+Each quote carries **how old the exchange says the print is** — `2s ago` under a live tick, amber once it drifts past 30 seconds, and hours when the market's shut. A number that stops updating should say so rather than sit there looking current.
 
 The **spot line** rides between the two bracketing strikes and drifts inside the gap as price moves, so you can see spot creeping toward a strike rather than watching a divider snap five points at a time. Both spots sit in the pill.
 
@@ -87,12 +92,13 @@ Sanity-check the strike math anytime: open the console, run `tenfoldCheck()`.
 |---|---|
 | **Size** | one file, ~14 KB, zero dependencies |
 | **Data** | Yahoo Finance chart endpoint (`^GSPC`, `SPY`), 3s poll |
-| **Ladder** | 10 SPX strikes each side of spot, 5-point grid |
+| **Ladder** | auto-fits the viewport, 5-point SPX grid |
 | **SPY grid** | $1 strikes |
 | **Clock** | America/New_York, DST handled |
+| **Theme** | light / dark, remembered in localStorage |
 | **Mobile** | responsive to 360px |
 
-Tune `WIDTH` (SPX strike spacing) and `N` (rows per side) at the top of the script.
+Change `WIDTH` at the top of the script for a different SPX strike spacing. Row count is automatic — it estimates from the viewport height, then shrinks until the page genuinely fits rather than trusting the arithmetic.
 
 **On the CORS relay:** Yahoo sends no CORS headers, so the browser reaches it through a public relay — `cors.lol`, then `cors.sh`, then `allorigins`, failing over automatically. Those are free, rate-limited, and run by strangers. Fine for personal use. If this ever picks up real traffic they'll throttle it and the app will sit on RECONNECTING. The fix is a small Cloudflare Worker proxying Yahoo, then point `RELAYS` at it — the free tier covers far more than this needs.
 

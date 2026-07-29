@@ -17,6 +17,14 @@
     --rowh:46px; --bandh:34px;
     --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
   }
+  /* graphite, not black — warm enough to read for hours */
+  :root[data-theme=dark]{
+    --bg:#181b21; --ink:#eef1f5; --dim:#a3aab6; --dim2:#767e8b;
+    --line:#2e333c; --hair:#252a32;
+    --gutter:#2b313b; --gutter-ink:#f4f6f9;
+    --callbg:#1a2a24; --putbg:#2a1e20;
+    --up:#4ade80; --dn:#f47272; --spot:#5c9bff;
+  }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   body{
     background:var(--bg); color:var(--ink);
@@ -27,8 +35,15 @@
   main{max-width:600px;margin:0 auto}
 
   header{display:flex;align-items:center;gap:24px;padding:20px 2px 14px}
-  .mark{font:700 12px/1 var(--mono);letter-spacing:.24em;margin-right:auto}
+  .mark{font:700 12px/1 var(--mono);letter-spacing:.24em}
+  .theme{margin-right:auto;background:none;border:1px solid var(--line);border-radius:999px;
+         width:28px;height:28px;cursor:pointer;color:var(--dim);font-size:13px;line-height:1;
+         display:grid;place-items:center;padding:0}
+  .theme:hover{border-color:var(--dim2);color:var(--ink)}
+  .q{position:relative}
   .q .lbl{font:700 10px/1 var(--mono);letter-spacing:.16em;color:var(--dim2)}
+  .q .age{font:500 9.5px/1 var(--mono);letter-spacing:.06em;color:var(--dim2);margin-top:5px}
+  .q .age.stale{color:#b8860b}
   .q .val{font:600 22px/1.25 var(--mono);letter-spacing:-.03em;margin-top:4px;transition:color .5s}
   .q .val.up{color:var(--up);transition:none} .q .val.dn{color:var(--dn);transition:none}
   .q .chg{font:500 11.5px/1 var(--mono)}
@@ -76,12 +91,12 @@
         box-shadow:0 0 0 3px var(--bg)}
   .spot .p em{font-style:normal;opacity:.62;font-size:11.5px;margin-left:6px}
 
-  .panel{padding:16px 18px 18px;background:#f6f8fc;border-bottom:1px solid var(--hair);
+  .panel{padding:16px 18px 18px;background:color-mix(in srgb,var(--spot) 7%,var(--bg));border-bottom:1px solid var(--hair);
          box-shadow:inset 0 0 0 2px var(--spot);animation:d .16s ease-out}
   @keyframes d{from{opacity:0}}
   .panel .in{display:flex;align-items:center;gap:11px;margin-bottom:15px}
   .panel label{font:700 10px/1 var(--mono);letter-spacing:.12em;color:var(--dim)}
-  .panel input{width:112px;font:500 18px/1 var(--mono);color:var(--ink);background:#fff;
+  .panel input{width:112px;font:500 18px/1 var(--mono);color:var(--ink);background:var(--bg);
     border:1.5px solid var(--line);border-radius:8px;padding:9px 11px;outline:none;letter-spacing:-.03em}
   .panel input:focus{border-color:var(--spot);box-shadow:0 0 0 3px rgba(11,95,208,.15)}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:15px}
@@ -103,8 +118,9 @@
 <main>
   <header>
     <span class="mark">TENFOLD</span>
-    <div class="q"><div class="lbl">SPX</div><div class="val" id="spxV">—</div><div class="chg" id="spxC">—</div></div>
-    <div class="q"><div class="lbl">SPY</div><div class="val" id="spyV">—</div><div class="chg" id="spyC">—</div></div>
+    <button class="theme" id="theme" title="Toggle theme" aria-label="Toggle light or dark theme">◐</button>
+    <div class="q"><div class="lbl">SPX</div><div class="val" id="spxV">—</div><div class="chg" id="spxC">—</div><div class="age" id="spxA"></div></div>
+    <div class="q"><div class="lbl">SPY</div><div class="val" id="spyV">—</div><div class="chg" id="spyC">—</div><div class="age" id="spyA"></div></div>
   </header>
 
   <div class="strip">
@@ -134,7 +150,7 @@ const RELAYS = [
 ];
 let relay = 0;
 
-const WIDTH = 5, N = 10, BANDH = 34;     // SPX grid, strikes each side of spot, spot band height (px)
+const WIDTH = 5, ROWH = 46, BANDH = 34;  // SPX grid spacing, row height, spot band height (px)
 const ET = {timeZone:'America/New_York', hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'};
 const S = {spx:null, spy:null, open:null, prem:{}};
 
@@ -145,7 +161,8 @@ async function quote(sym){
       const m = (await (await fetch(r(YQ(sym)),{cache:'no-store'})).json()).chart.result[0].meta;
       if(typeof m.regularMarketPrice !== 'number') throw 0;
       relay = (relay+i)%RELAYS.length;
-      return {px:m.regularMarketPrice, prev:m.chartPreviousClose ?? m.previousClose, st:m.marketState};
+      return {px:m.regularMarketPrice, prev:m.chartPreviousClose ?? m.previousClose, st:m.marketState,
+              t:(m.regularMarketTime ?? 0) * 1000};
     }catch(e){}
   }
   throw 0;
@@ -168,6 +185,19 @@ function paint(k, q, prev){
   c.textContent = `${u?'+':''}${f(d)}  ${u?'+':''}${f(d/q.prev*100)}%`;
 }
 
+// how old the exchange says the print is — not how long ago we polled
+function ages(){
+  for(const k of ['spx','spy']){
+    const q = S[k], el = $(k+'A');
+    if(!q || !q.t){ el.textContent = ''; continue; }
+    const s = Math.max(0, Math.round((Date.now() - q.t)/1000));
+    el.textContent = s < 60 ? s + 's ago'
+                   : s < 3600 ? Math.floor(s/60) + 'm ago'
+                   : Math.floor(s/3600) + 'h ago';
+    el.classList.toggle('stale', s > 30);
+  }
+}
+
 async function tick(){
   try{
     const a = S.spx?.px, b = S.spy?.px;
@@ -175,6 +205,7 @@ async function tick(){
     S.spx = spx; S.spy = spy;
     paint('spx', spx, a); paint('spy', spy, b);
     $('ratio').textContent = 'RATIO ' + f(ratio(), 4);
+    ages();
     const live = spy.st === 'REGULAR';
     $('dot').className = 'dot' + (live ? '' : ' w');
     $('stat').textContent = (live ? 'LIVE' : spy.st || 'CLOSED') + ' ' + new Date().toLocaleTimeString('en-US', ET) + ' ET';
@@ -184,7 +215,22 @@ async function tick(){
   }
 }
 
+// first guess at how many strikes a side fit; the render loop trims from here
+const fitN = () => Math.max(2, Math.floor(
+  (innerHeight - $('ladder').offsetTop - document.querySelector('.foot').offsetHeight - BANDH - 40) / ROWH / 2));
+
 function render(){
+  const el = document.activeElement, caret = el && el.id === 'prem' ? el.selectionStart : null;
+  // shrink until the page actually fits — cheaper and more reliable than guessing at chrome heights
+  for(let n = fitN(); n >= 2; n--){
+    $('ladder').innerHTML = build(n);
+    if(document.documentElement.scrollHeight <= innerHeight || n === 2) break;
+  }
+  if(caret !== null){ const i = $('prem'); i.focus(); i.setSelectionRange(caret, caret); }
+  placeLine(S.spx.px);
+}
+
+function build(N){
   const spot = S.spx.px, base = Math.round(spot / WIDTH) * WIDTH;
   const lo = base - N*WIDTH, hi = base + N*WIDTH;
   // the SPX strike whose equivalent lands closest to each listed SPY strike is the real pair
@@ -199,10 +245,7 @@ function render(){
     if(k > spot && !out.includes(LINE)) out.push(LINE);   // band goes in above the first strike over spot
     out.push(row(k, best.get(Math.round(equiv(k))).k === k));
   }
-  const el = document.activeElement, caret = el && el.id === 'prem' ? el.selectionStart : null;
-  $('ladder').innerHTML = out.join('');
-  if(caret !== null){ const i = $('prem'); i.focus(); i.setSelectionRange(caret, caret); }
-  placeLine(spot);
+  return out.join('');
 }
 
 const LINE = `<div class="spot"><div class="slide" id="spotline"><div class="bar"></div>
@@ -262,8 +305,19 @@ $('ladder').addEventListener('input', e => {
   $('out').textContent = Number.isFinite(n) && n > 0 ? '$' + f(n/ratio()) : '—';
 });
 
+const theme = t => {
+  document.documentElement.dataset.theme = t;
+  document.querySelector('meta[name=theme-color]').content = t === 'dark' ? '#181b21' : '#ffffff';
+  $('theme').textContent = t === 'dark' ? '☀' : '◐';
+  localStorage.tenfoldTheme = t;
+};
+theme(localStorage.tenfoldTheme || 'light');
+$('theme').onclick = () => theme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+
 tick();
 setInterval(tick, 3000);
+setInterval(ages, 1000);
+addEventListener('resize', () => S.spx && render());
 document.addEventListener('visibilitychange', () => !document.hidden && tick());
 
 // self-check: console -> tenfoldCheck()
@@ -281,6 +335,9 @@ window.tenfoldCheck = () => {
   const eq = k => k / (7428.78/740.86);
   console.assert(Math.abs(eq(7430)-741) < Math.abs(eq(7425)-741), 'best pair picks the nearer strike');
   console.assert(new Date('2026-07-29T14:06:00Z').toLocaleTimeString('en-US',ET) === '10:06:00', 'NYC clock');
+  console.assert(fitN() >= 2, 'always shows at least 2 strikes a side');
+  console.assert(document.documentElement.scrollHeight <= innerHeight, 'page fits without scrolling');
+  console.assert(document.querySelectorAll('.row').length % 2 === 1, 'symmetric ladder: 2N+1 strikes');
   return 'ok';
 };
 </script>
