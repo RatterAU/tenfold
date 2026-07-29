@@ -282,27 +282,94 @@ function bounds(spyPrem, gap, isCall){
   return [Math.min(spyPrem, other), Math.max(spyPrem, other)];
 }
 
-function panel(k){
+// --- the gap estimate, tightened -------------------------------------------
+// The bound above is worst-case. The true slope is dC/dK = -N(d2) (calls) or
+// +N(-d2) (puts) — and the premium you typed already implies the vol that
+// fixes it, so no options feed is needed. Solve sigma, read the slope, walk
+// the gap. r = q = 0: over a few hours of 0DTE that is under a tenth of a cent.
+const ncdf = x => {                                   // A&S 7.1.26, |err| < 1.5e-7
+  const t = 1/(1 + .2316419*Math.abs(x));
+  const p = t*(.319381530 + t*(-.356563782 + t*(1.781477937 + t*(-1.821255978 + t*1.330274429))));
+  const v = 1 - Math.exp(-x*x/2)/Math.sqrt(2*Math.PI)*p;
+  return x >= 0 ? v : 1 - v;
+};
+const bs = (S, K, T, s, isCall) => {
+  const v = s*Math.sqrt(T), d1 = (Math.log(S/K) + v*v/2)/v, d2 = d1 - v;
+  return isCall ? S*ncdf(d1) - K*ncdf(d2) : K*ncdf(-d2) - S*ncdf(-d1);
+};
+
+// seconds until today's 4:00pm ET settlement, or null once the day is done
+function toClose(){
+  const [h,m,sec] = new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour12:false,
+    hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date()).split(':').map(Number);
+  const left = 16*3600 - (h*3600 + m*60 + sec);
+  return left > 60 ? left : null;                     // inside the last minute the solve is noise
+}
+
+// bisection, not Newton: vega collapses near expiry and Newton walks off a cliff there
+function slope(S, K, prem, isCall, secs){
+  if(!secs) return null;
+  const T = secs/(365*24*3600), intrinsic = Math.max(0, isCall ? S-K : K-S);
+  if(prem <= intrinsic || prem >= (isCall ? S : K)) return null;   // no sigma solves this
+  let lo = 1e-4, hi = 5;
+  if(bs(S,K,T,hi,isCall) < prem) return null;                      // past what 500% vol can price
+  for(let i = 0; i < 60; i++){
+    const mid = (lo+hi)/2;
+    if(bs(S,K,T,mid,isCall) < prem) lo = mid; else hi = mid;
+  }
+  const s = (lo+hi)/2, v = s*Math.sqrt(T), d2 = (Math.log(S/K) + v*v/2)/v - v;
+  return {iv: s, d: isCall ? -ncdf(d2) : ncdf(-d2)};               // unitless: same in SPY space
+}
+
+// everything the panel shows for a typed premium, in one place so the live
+// input handler and the rendered panel can never disagree
+function price(k, n){
   const e = equiv(k), listed = Math.round(e), gap = listed - e, isCall = k > S.spx.px;
-  const raw = S.prem[k] ?? '', n = parseFloat(raw), has = Number.isFinite(n) && n > 0;
-  const spy = has ? n / ratio() : null;
-  const b = has ? bounds(spy, gap, isCall) : null;
+  const o = {e, listed, gap, isCall};
+  if(!(Number.isFinite(n) && n > 0)) return o;
+  o.spy = n / ratio();
+  o.b = bounds(o.spy, gap, isCall);
+  const sl = slope(S.spx.px, k, n, isCall, toClose());
+  if(sl){
+    o.iv = sl.iv;
+    // clamp: the model estimate can never leave the model-free band
+    o.est = Math.min(o.b[1], Math.max(o.b[0], Math.max(0, o.spy + sl.d*gap)));
+  }
+  return o;
+}
+const fmtL = o => o.spy == null ? '—'
+  : o.est != null ? '$' + f(o.est)
+  : '$' + f(o.b[0]) + '–$' + f(o.b[1]);
+
+function panel(k){
+  const raw = S.prem[k] ?? '', o = price(k, parseFloat(raw));
   return `<div class="panel">
     <div class="in">
       <label>SPX ${k.toLocaleString()} @ $</label>
       <input id="prem" inputmode="decimal" placeholder="0.00" value="${raw}" autocomplete="off">
     </div>
     <div class="grid">
-      <div><span class="k">SPY @ ${f(e)}</span><span class="v" id="out">${has ? '$'+f(spy) : '—'}</span></div>
-      <div><span class="k">SPY @ ${listed}</span><span class="v s" id="outL">${b ? '$'+f(b[0])+'–$'+f(b[1]) : '—'}</span></div>
-      <div><span class="k">STRIKE GAP</span><span class="v s">${gap>=0?'+':''}${f(gap)}</span></div>
-      <div><span class="k">RATIO</span><span class="v s">${f(ratio(),4)}</span></div>
+      <div><span class="k">SPY @ ${f(o.e)}</span><span class="v" id="out">${o.spy != null ? '$'+f(o.spy) : '—'}</span></div>
+      <div><span class="k">SPY @ ${o.listed}</span><span class="v" id="outL">${fmtL(o)}</span></div>
+      <div><span class="k">STRIKE GAP</span><span class="v s">${o.gap>=0?'+':''}${f(o.gap)}</span></div>
+      <div><span class="k">0DTE IV</span><span class="v s" id="outIV">${o.iv != null ? f(o.iv*100,1)+'%' : '—'}</span></div>
     </div>
-    <p class="fine">Not a flat &divide;10. SPY trails SPX by accrued dividends, so the live ratio is
-      ${f(ratio(),4)} — and SPX's 5-point grid puts this strike ${f(Math.abs(gap))} off the nearest listed
-      SPY strike. The first figure is exact for the equivalent ${f(e)} strike; the second is the true range
-      the listed ${listed} ${isCall?'call':'put'} must sit in. Verify on your broker.</p>
+    <p class="fine" id="outNote">${note(o)}</p>
   </div>`;
+}
+
+function note(o){
+  const head = `Not a flat &divide;10. SPY trails SPX by accrued dividends (live ratio ${f(ratio(),4)}), and
+    SPX's 5-point grid puts this strike ${f(Math.abs(o.gap))} off the nearest listed SPY strike.`;
+  if(o.spy == null) return head;
+  const tail = o.est != null
+    ? `$${f(o.spy)} is exact for the equivalent ${f(o.e)} strike. For the listed ${o.listed}
+       ${o.isCall?'call':'put'}, your premium implies ${f(o.iv*100,1)}% vol, so the strike slope is
+       ${f(Math.abs(o.est-o.spy)/Math.abs(o.gap||1),2)} — that walks the gap to $${f(o.est)}
+       (bound: $${f(o.b[0])}–$${f(o.b[1])}).`
+    : `$${f(o.spy)} is exact for the equivalent ${f(o.e)} strike. No vol solves that premium at this
+       hour, so the listed ${o.listed} only gets its model-free band, $${f(o.b[0])}–$${f(o.b[1])}.`;
+  return `${head} ${tail} Verify on your broker.`;
 }
 
 $('ladder').addEventListener('click', e => {
@@ -318,11 +385,11 @@ $('ladder').addEventListener('keydown', e => {
 $('ladder').addEventListener('input', e => {
   if(e.target.id !== 'prem') return;
   S.prem[S.open] = e.target.value;
-  const n = parseFloat(e.target.value), k = S.open, eq = equiv(k);
-  if(!(Number.isFinite(n) && n > 0)){ $('out').textContent = $('outL').textContent = '—'; return; }
-  const spy = n / ratio(), b = bounds(spy, Math.round(eq) - eq, k > S.spx.px);
-  $('out').textContent = '$' + f(spy);
-  $('outL').textContent = '$' + f(b[0]) + '–$' + f(b[1]);
+  const o = price(S.open, parseFloat(e.target.value));
+  $('out').textContent = o.spy != null ? '$' + f(o.spy) : '—';
+  $('outL').textContent = fmtL(o);
+  $('outIV').textContent = o.iv != null ? f(o.iv*100,1) + '%' : '—';
+  $('outNote').innerHTML = note(o);
 });
 
 const theme = t => {
@@ -365,6 +432,20 @@ window.tenfoldCheck = () => {
   console.assert(near(bounds(0.818,  0.25, false), 0.818, 1.068), 'put bound up');
   console.assert(near(bounds(0.818, -0.25, true ), 0.818, 1.068), 'call bound up');
   console.assert(bounds(0.818, 0, true)[0] === bounds(0.818, 0, true)[1], 'no gap, no band');
+  // normal CDF
+  console.assert(Math.abs(ncdf(0) - .5) < 1e-9 && Math.abs(ncdf(1.96) - .975) < 1e-4, 'ncdf');
+  console.assert(Math.abs(ncdf(-1.4) - (1 - ncdf(1.4))) < 1e-9, 'ncdf symmetric');
+  // round trip: price at a known vol, solve it back
+  const T = 3*3600/(365*24*3600), c = bs(7428.78, 7405, T, .12, true);
+  const sl = slope(7428.78, 7405, c, true, 3*3600);
+  console.assert(Math.abs(sl.iv - .12) < 1e-4, 'iv round trip');
+  // an ATM-ish 0DTE call slope sits near -0.5, never outside [-1,0]
+  console.assert(sl.d < 0 && sl.d > -1 && Math.abs(sl.d) > .5, 'call slope sign and range');
+  const sp = slope(7428.78, 7455, bs(7428.78, 7455, T, .12, false), false, 3*3600);
+  console.assert(sp.d > 0 && sp.d < 1, 'put slope sign and range');
+  // the tightened estimate must never escape the model-free band
+  console.assert(slope(7428.78, 7405, 0.01, true, 3*3600) === null, 'unsolvable premium falls back');
+  console.assert(slope(7428.78, 7405, 20, true, null) === null, 'after the close, bound only');
   console.assert(document.querySelectorAll('.row').length % 2 === 1, 'symmetric ladder: 2N+1 strikes');
   return 'ok';
 };
