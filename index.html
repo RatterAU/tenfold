@@ -246,7 +246,9 @@ async function tick(){
     S.spx = spx; S.spy = spy;
     paint('spx', spx, a); paint('spy', spy, b);
     ages(); showRatio();
-    const live = spy.st === 'REGULAR';
+    // marketState lags reality on the relays (still says PRE/CLOSED while prints roll in), so
+    // trust the prints: both legs quoting inside the last two minutes means the session is open.
+    const live = Math.max(secsOld(spx), secsOld(spy)) < 120 || spy.st === 'REGULAR';
     $('dot').className = 'dot' + (live ? '' : ' w');
     $('stat').textContent = (live ? 'LIVE' : spy.st || 'CLOSED') + ' ' + new Date().toLocaleTimeString('en-US', ET) + ' ET';
     // SPX options keep trading overnight on Cboe GTH; SPY options and ^GSPC do not. Cross-quotes
