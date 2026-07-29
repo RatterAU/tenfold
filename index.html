@@ -107,7 +107,9 @@
         font:700 13px/1 var(--mono);letter-spacing:-.03em;color:#fff;background:var(--spot);
         padding:5px 12px;border-radius:999px;white-space:nowrap;
         box-shadow:0 0 0 3px var(--bg)}
-  .spot .p em{font-style:normal;opacity:.62;font-size:11.5px;margin-left:6px}
+  .spot .p em{font-style:normal;opacity:.62;font-size:11.5px;margin-left:7px}
+  .spot .p em#spotAge{opacity:.5;padding-left:7px;border-left:1px solid rgba(255,255,255,.35)}
+  .spot .p em#spotAge.stale{opacity:1;color:#ffe08a}
 
   .panel{padding:16px 18px 18px;background:color-mix(in srgb,var(--spot) 7%,var(--bg));border-bottom:1px solid var(--hair);
          box-shadow:inset 0 0 0 2px var(--spot);animation:d .16s ease-out}
@@ -220,17 +222,21 @@ function paint(k, q, prev){
   c.textContent = `${u?'+':''}${f(d)}  ${u?'+':''}${f(d/q.prev*100)}%`;
 }
 
+const secsOld = q => Math.max(0, Math.round((Date.now() - q.t)/1000));
+const said = s => s < 60 ? s + 's ago' : s < 3600 ? Math.floor(s/60) + 'm ago' : Math.floor(s/3600) + 'h ago';
+
 // how old the exchange says the print is — not how long ago we polled
 function ages(){
   for(const k of ['spx','spy']){
     const q = S[k], el = $(k+'A');
     if(!q || !q.t){ el.textContent = ''; continue; }
-    const s = Math.max(0, Math.round((Date.now() - q.t)/1000));
-    el.textContent = s < 60 ? s + 's ago'
-                   : s < 3600 ? Math.floor(s/60) + 'm ago'
-                   : Math.floor(s/3600) + 'h ago';
+    const s = secsOld(q);
+    el.textContent = said(s);
     el.classList.toggle('stale', s > 30);
   }
+  // the spot line carries its own age: it is the number people read, so it says how old it is
+  const el = $('spotAge');
+  if(el && S.spx?.t){ const s = secsOld(S.spx); el.textContent = said(s); el.classList.toggle('stale', s > 30); }
 }
 
 async function tick(){
@@ -266,6 +272,7 @@ function render(){
   if(h !== lastHTML){ lastHTML = h; $('ladder').innerHTML = h; }   // most ticks change nothing but the band
   if(caret !== null){ const i = $('prem'); i.focus(); i.setSelectionRange(caret, caret); }
   placeLine(S.spx.px);
+  ages();                                    // the band is rebuilt above, so refill its age now
   if(!centred){ centred = true; centre(); }
 }
 const centre = () => requestAnimationFrame(() =>
@@ -290,7 +297,7 @@ function build(N){
 }
 
 const LINE = `<div class="spot"><div class="slide" id="spotline"><div class="bar"></div>
-  <span class="p"><span id="spotSpx"></span><em id="spotSpy"></em></span></div></div>`;
+  <span class="p"><span id="spotSpx"></span><em id="spotSpy"></em><em id="spotAge"></em></span></div></div>`;
 
 // The band sits between the two bracketing strikes; drift the line inside it to show
 // where spot actually falls in that 5-point gap, without ever covering a row.
