@@ -32,7 +32,7 @@
     font-feature-settings:"tnum" 1; letter-spacing:-.012em;
     -webkit-font-smoothing:antialiased; padding:0 16px calc(40px + env(safe-area-inset-bottom));
   }
-  main{max-width:600px;margin:0 auto}
+  main{max-width:680px;margin:0 auto}
 
   header{display:flex;align-items:center;gap:24px;padding:20px 2px 14px}
   .mark{font:700 12px/1 var(--mono);letter-spacing:.24em}
@@ -52,6 +52,9 @@
   .strip{display:flex;align-items:center;gap:14px;padding:0 2px 10px;
          font:600 10.5px/1 var(--mono);letter-spacing:.1em;color:var(--dim)}
   .strip .r{margin-left:auto;display:flex;align-items:center;gap:6px}
+  .strip label{display:flex;align-items:center;gap:5px;color:var(--dim2)}
+  .strip select{font:inherit;color:var(--dim);background:var(--bg);border:1px solid var(--line);
+        border-radius:6px;padding:3px 5px;cursor:pointer}
   .dot{width:6px;height:6px;border-radius:50%;background:var(--up);animation:b 2.4s infinite}
   .dot.w{background:#b8860b;animation:none} .dot.e{background:var(--dn);animation:none}
   @keyframes b{0%,100%{opacity:1}50%{opacity:.25}}
@@ -125,6 +128,7 @@
 
   <div class="strip">
     <span id="ratio">—</span>
+    <label>±<select id="n"><option>5<option>8<option>12<option>20<option>30<option>50</select> STRIKES</label>
     <span class="r"><span class="dot" id="dot"></span><span id="stat">…</span></span>
   </div>
 
@@ -215,20 +219,20 @@ async function tick(){
   }
 }
 
-// first guess at how many strikes a side fit; the render loop trims from here
-const fitN = () => Math.max(2, Math.floor(
-  (innerHeight - $('ladder').offsetTop - document.querySelector('.foot').offsetHeight - BANDH - 40) / ROWH / 2));
+// user picks the depth; ladder scrolls and keeps spot centred on load and on resize
+const fitN = () => +$('n').value;
 
+let lastHTML = '', centred = false;
 function render(){
   const el = document.activeElement, caret = el && el.id === 'prem' ? el.selectionStart : null;
-  // shrink until the page actually fits — cheaper and more reliable than guessing at chrome heights
-  for(let n = fitN(); n >= 2; n--){
-    $('ladder').innerHTML = build(n);
-    if(document.documentElement.scrollHeight <= innerHeight || n === 2) break;
-  }
+  const h = build(fitN());
+  if(h !== lastHTML){ lastHTML = h; $('ladder').innerHTML = h; }   // most ticks change nothing but the band
   if(caret !== null){ const i = $('prem'); i.focus(); i.setSelectionRange(caret, caret); }
   placeLine(S.spx.px);
+  if(!centred){ centred = true; centre(); }
 }
+const centre = () => requestAnimationFrame(() =>
+  document.querySelector('.spot')?.scrollIntoView({block:'center'}));
 
 function build(N){
   const spot = S.spx.px, base = Math.round(spot / WIDTH) * WIDTH;
@@ -269,22 +273,35 @@ function row(k, best){
   return open ? r + panel(k) : r;
 }
 
+// Exact part: an SPX option's payoff divided by the ratio IS an SPY option at strike k/ratio.
+// Inexact part: the listed SPY strike is up to 2.5 SPX points (~0.25 SPY) away, and no model-free
+// value exists for that shift. But |dPremium/dStrike| <= 1 always, so the listed premium is pinned
+// inside a band of width |gap| — a bound, not a guess. Calls fall as strike rises, puts rise.
+function bounds(spyPrem, gap, isCall){
+  const other = spyPrem - (isCall ? gap : -gap);
+  return [Math.min(spyPrem, other), Math.max(spyPrem, other)];
+}
+
 function panel(k){
-  const e = equiv(k), listed = Math.round(e), gap = listed - e;
+  const e = equiv(k), listed = Math.round(e), gap = listed - e, isCall = k > S.spx.px;
   const raw = S.prem[k] ?? '', n = parseFloat(raw), has = Number.isFinite(n) && n > 0;
+  const spy = has ? n / ratio() : null;
+  const b = has ? bounds(spy, gap, isCall) : null;
   return `<div class="panel">
     <div class="in">
       <label>SPX ${k.toLocaleString()} @ $</label>
       <input id="prem" inputmode="decimal" placeholder="0.00" value="${raw}" autocomplete="off">
     </div>
     <div class="grid">
-      <div><span class="k">SPY PRICE</span><span class="v" id="out">${has ? '$'+f(n/ratio()) : '—'}</span></div>
-      <div><span class="k">AT STRIKE</span><span class="v">${f(e)}</span></div>
-      <div><span class="k">LISTED SPY</span><span class="v s">${listed} (${gap>=0?'+':''}${f(gap)})</span></div>
-      <div><span class="k">SIZE</span><span class="v s">1 : 10</span></div>
+      <div><span class="k">SPY @ ${f(e)}</span><span class="v" id="out">${has ? '$'+f(spy) : '—'}</span></div>
+      <div><span class="k">SPY @ ${listed}</span><span class="v s" id="outL">${b ? '$'+f(b[0])+'–$'+f(b[1]) : '—'}</span></div>
+      <div><span class="k">STRIKE GAP</span><span class="v s">${gap>=0?'+':''}${f(gap)}</span></div>
+      <div><span class="k">RATIO</span><span class="v s">${f(ratio(),4)}</span></div>
     </div>
-    <p class="fine">Premium scales by the live ratio at the <em>exact</em> equivalent strike ${f(e)}.
-      Listed ${listed} sits ${f(Math.abs(gap))} away, so its real premium differs — anchor, not a quote.</p>
+    <p class="fine">Not a flat &divide;10. SPY trails SPX by accrued dividends, so the live ratio is
+      ${f(ratio(),4)} — and SPX's 5-point grid puts this strike ${f(Math.abs(gap))} off the nearest listed
+      SPY strike. The first figure is exact for the equivalent ${f(e)} strike; the second is the true range
+      the listed ${listed} ${isCall?'call':'put'} must sit in. Verify on your broker.</p>
   </div>`;
 }
 
@@ -301,8 +318,11 @@ $('ladder').addEventListener('keydown', e => {
 $('ladder').addEventListener('input', e => {
   if(e.target.id !== 'prem') return;
   S.prem[S.open] = e.target.value;
-  const n = parseFloat(e.target.value);
-  $('out').textContent = Number.isFinite(n) && n > 0 ? '$' + f(n/ratio()) : '—';
+  const n = parseFloat(e.target.value), k = S.open, eq = equiv(k);
+  if(!(Number.isFinite(n) && n > 0)){ $('out').textContent = $('outL').textContent = '—'; return; }
+  const spy = n / ratio(), b = bounds(spy, Math.round(eq) - eq, k > S.spx.px);
+  $('out').textContent = '$' + f(spy);
+  $('outL').textContent = '$' + f(b[0]) + '–$' + f(b[1]);
 });
 
 const theme = t => {
@@ -311,13 +331,16 @@ const theme = t => {
   $('theme').textContent = t === 'dark' ? '☀' : '◐';
   localStorage.tenfoldTheme = t;
 };
+$('n').value = localStorage.tenfoldN || '12';
+$('n').onchange = () => { localStorage.tenfoldN = $('n').value; centred = false; if(S.spx) render(); };
+
 theme(localStorage.tenfoldTheme || 'light');
 $('theme').onclick = () => theme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
 
 tick();
 setInterval(tick, 3000);
 setInterval(ages, 1000);
-addEventListener('resize', () => S.spx && render());
+addEventListener('resize', () => { if(S.spx){ render(); centre(); } });
 document.addEventListener('visibilitychange', () => !document.hidden && tick());
 
 // self-check: console -> tenfoldCheck()
@@ -335,8 +358,13 @@ window.tenfoldCheck = () => {
   const eq = k => k / (7428.78/740.86);
   console.assert(Math.abs(eq(7430)-741) < Math.abs(eq(7425)-741), 'best pair picks the nearer strike');
   console.assert(new Date('2026-07-29T14:06:00Z').toLocaleTimeString('en-US',ET) === '10:06:00', 'NYC clock');
-  console.assert(fitN() >= 2, 'always shows at least 2 strikes a side');
-  console.assert(document.documentElement.scrollHeight <= innerHeight, 'page fits without scrolling');
+  console.assert(document.querySelectorAll('.row').length === fitN()*2 + 1, 'ladder honours the picker');
+  // listed strike above the exact equiv: a call gets cheaper, a put dearer, by at most the gap
+  const near = (b, lo, hi) => Math.abs(b[0]-lo) < 1e-9 && Math.abs(b[1]-hi) < 1e-9;
+  console.assert(near(bounds(0.818,  0.25, true ), 0.568, 0.818), 'call bound down');
+  console.assert(near(bounds(0.818,  0.25, false), 0.818, 1.068), 'put bound up');
+  console.assert(near(bounds(0.818, -0.25, true ), 0.818, 1.068), 'call bound up');
+  console.assert(bounds(0.818, 0, true)[0] === bounds(0.818, 0, true)[1], 'no gap, no band');
   console.assert(document.querySelectorAll('.row').length % 2 === 1, 'symmetric ladder: 2N+1 strikes');
   return 'ok';
 };
