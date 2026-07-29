@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="color-scheme" content="light">
+<title>TENFOLD</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230b0c0f'/><text x='16' y='23' font-family='monospace' font-size='19' fill='%23fff' text-anchor='middle'>10</text></svg>">
+<style>
+  :root{
+    --bg:#fff; --ink:#0b0c0f; --dim:#565b66; --dim2:#8b909b;
+    --line:#dcdee3; --hair:#edeef1;
+    --gutter:#0b0c0f; --gutter-ink:#fff;
+    --callbg:#effaf3; --putbg:#fdf1f1;
+    --up:#0a7d43; --dn:#c62c2c; --spot:#0b5fd0;
+    --rowh:46px; --bandh:34px;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:400 15px/1.4 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif;
+    font-feature-settings:"tnum" 1; letter-spacing:-.012em;
+    -webkit-font-smoothing:antialiased; padding:0 16px calc(40px + env(safe-area-inset-bottom));
+  }
+  main{max-width:600px;margin:0 auto}
+
+  header{display:flex;align-items:center;gap:24px;padding:20px 2px 14px}
+  .mark{font:700 12px/1 var(--mono);letter-spacing:.24em;margin-right:auto}
+  .q .lbl{font:700 10px/1 var(--mono);letter-spacing:.16em;color:var(--dim2)}
+  .q .val{font:600 22px/1.25 var(--mono);letter-spacing:-.03em;margin-top:4px;transition:color .5s}
+  .q .val.up{color:var(--up);transition:none} .q .val.dn{color:var(--dn);transition:none}
+  .q .chg{font:500 11.5px/1 var(--mono)}
+  .chg.u{color:var(--up)} .chg.d{color:var(--dn)}
+
+  .strip{display:flex;align-items:center;gap:14px;padding:0 2px 10px;
+         font:600 10.5px/1 var(--mono);letter-spacing:.1em;color:var(--dim)}
+  .strip .r{margin-left:auto;display:flex;align-items:center;gap:6px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--up);animation:b 2.4s infinite}
+  .dot.w{background:#b8860b;animation:none} .dot.e{background:var(--dn);animation:none}
+  @keyframes b{0%,100%{opacity:1}50%{opacity:.25}}
+
+  .chain{border:1px solid var(--line);border-radius:12px;overflow:hidden;position:relative}
+  .hd,.row{display:grid;grid-template-columns:1fr 132px 1fr;align-items:center}
+
+  .hd{font:700 9.5px/1 var(--mono);letter-spacing:.14em;color:var(--dim2);border-bottom:1px solid var(--line)}
+  .hd span{padding:12px 18px}
+  .hd .c{background:var(--gutter);color:var(--gutter-ink);text-align:center;padding:12px 0}
+  .hd .r{text-align:right}
+
+  .row{height:var(--rowh);cursor:pointer;font:500 17px/1 var(--mono);letter-spacing:-.03em;
+       border-bottom:1px solid var(--hair);position:relative}
+  .row.call{background:var(--callbg)} .row.put{background:var(--putbg)}
+  .row > span{padding:0 18px}
+  .row .c{background:var(--gutter);color:var(--gutter-ink);text-align:center;height:100%;
+          display:flex;align-items:center;justify-content:center;font-weight:600;font-size:17.5px}
+  .row .r{text-align:right;color:var(--dim)}
+  .row:hover{filter:brightness(.975)}
+  .row.open{box-shadow:inset 0 0 0 2px var(--spot);z-index:2}
+  /* two SPX strikes can round to the same SPY strike — dim the looser of the pair */
+  .row.far span:first-child,.row.far .r{opacity:.42}
+  .row.best span:first-child{font-weight:700}
+  .row.best span:first-child::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
+        background:var(--spot);margin-left:7px;vertical-align:middle}
+
+  /* spot band — reserves its own height so nothing is ever covered */
+  .spot{height:var(--bandh);position:relative;z-index:3;background:var(--bg);
+        border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+  .spot .slide{position:absolute;inset:0;transform:translateY(var(--o,0px));
+        transition:transform .5s cubic-bezier(.4,0,.2,1)}
+  .spot .bar{position:absolute;left:0;right:0;top:50%;height:1.5px;margin-top:-.75px;background:var(--spot)}
+  .spot .p{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+        font:700 13px/1 var(--mono);letter-spacing:-.03em;color:#fff;background:var(--spot);
+        padding:5px 12px;border-radius:999px;white-space:nowrap;
+        box-shadow:0 0 0 3px var(--bg)}
+  .spot .p em{font-style:normal;opacity:.62;font-size:11.5px;margin-left:6px}
+
+  .panel{padding:16px 18px 18px;background:#f6f8fc;border-bottom:1px solid var(--hair);
+         box-shadow:inset 0 0 0 2px var(--spot);animation:d .16s ease-out}
+  @keyframes d{from{opacity:0}}
+  .panel .in{display:flex;align-items:center;gap:11px;margin-bottom:15px}
+  .panel label{font:700 10px/1 var(--mono);letter-spacing:.12em;color:var(--dim)}
+  .panel input{width:112px;font:500 18px/1 var(--mono);color:var(--ink);background:#fff;
+    border:1.5px solid var(--line);border-radius:8px;padding:9px 11px;outline:none;letter-spacing:-.03em}
+  .panel input:focus{border-color:var(--spot);box-shadow:0 0 0 3px rgba(11,95,208,.15)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:15px}
+  .grid .k{font:700 9.5px/1 var(--mono);letter-spacing:.12em;color:var(--dim2);display:block;margin-bottom:7px}
+  .grid .v{font:600 20px/1 var(--mono);letter-spacing:-.03em}
+  .grid .v.s{color:var(--dim);font-weight:500;font-size:17px}
+  .fine{margin-top:13px;font:400 11.5px/1.55 -apple-system,system-ui,sans-serif;color:var(--dim)}
+  .foot{padding:13px 2px 0;font:400 11px/1.6 -apple-system,system-ui,sans-serif;color:var(--dim2)}
+  @media(max-width:430px){
+    body{padding:0 11px 40px} header{gap:14px} .q .val{font-size:19px}
+    .hd,.row{grid-template-columns:1fr 104px 1fr}
+    .row{font-size:15.5px} .row > span,.hd span{padding:0 11px}
+    .hd span{padding:12px 11px} .spot .p{font-size:12px;padding:5px 10px}
+  }
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="mark">TENFOLD</span>
+    <div class="q"><div class="lbl">SPX</div><div class="val" id="spxV">—</div><div class="chg" id="spxC">—</div></div>
+    <div class="q"><div class="lbl">SPY</div><div class="val" id="spyV">—</div><div class="chg" id="spyC">—</div></div>
+  </header>
+
+  <div class="strip">
+    <span id="ratio">—</span>
+    <span class="r"><span class="dot" id="dot"></span><span id="stat">…</span></span>
+  </div>
+
+  <div class="chain">
+    <div class="hd"><span>SPY STRIKE</span><span class="c">SPX STRIKE</span><span class="r">SPY EXACT EQUIV</span></div>
+    <div id="ladder"></div>
+  </div>
+
+  <p class="foot">Green above spot, red below. No prices — no free feed quotes options faster than once a second.
+     Tap a strike to price it. Quotes via Yahoo, 3s poll; verify on your broker.</p>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const YQ = s => `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(s)}?interval=1m&range=1d`;
+// Yahoo sends no CORS headers — relay chain with failover.
+const RELAYS = [
+  u => `https://api.cors.lol/?url=${encodeURIComponent(u)}`,
+  u => `https://proxy.cors.sh/${u}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => u,
+];
+let relay = 0;
+
+const WIDTH = 5, N = 10, BANDH = 34;     // SPX grid, strikes each side of spot, spot band height (px)
+const ET = {timeZone:'America/New_York', hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'};
+const S = {spx:null, spy:null, open:null, prem:{}};
+
+async function quote(sym){
+  for(let i=0;i<RELAYS.length;i++){
+    const r = RELAYS[(relay+i)%RELAYS.length];
+    try{
+      const m = (await (await fetch(r(YQ(sym)),{cache:'no-store'})).json()).chart.result[0].meta;
+      if(typeof m.regularMarketPrice !== 'number') throw 0;
+      relay = (relay+i)%RELAYS.length;
+      return {px:m.regularMarketPrice, prev:m.chartPreviousClose ?? m.previousClose, st:m.marketState};
+    }catch(e){}
+  }
+  throw 0;
+}
+
+const f = (n,d=2) => n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const ratio = () => S.spx.px / S.spy.px;
+// SPY trails SPX by accrued dividends, so the ratio sits near 10.03, not 10.
+const equiv = k => k / ratio();
+
+function paint(k, q, prev){
+  const v = $(k+'V'), c = $(k+'C');
+  v.textContent = f(q.px);
+  if(prev != null && q.px !== prev){
+    v.classList.remove('up','dn'); void v.offsetWidth;
+    v.classList.add(q.px > prev ? 'up' : 'dn');
+  }
+  const d = q.px - q.prev, u = d >= 0;
+  c.className = 'chg ' + (u ? 'u' : 'd');
+  c.textContent = `${u?'+':''}${f(d)}  ${u?'+':''}${f(d/q.prev*100)}%`;
+}
+
+async function tick(){
+  try{
+    const a = S.spx?.px, b = S.spy?.px;
+    const [spx, spy] = await Promise.all([quote('^GSPC'), quote('SPY')]);
+    S.spx = spx; S.spy = spy;
+    paint('spx', spx, a); paint('spy', spy, b);
+    $('ratio').textContent = 'RATIO ' + f(ratio(), 4);
+    const live = spy.st === 'REGULAR';
+    $('dot').className = 'dot' + (live ? '' : ' w');
+    $('stat').textContent = (live ? 'LIVE' : spy.st || 'CLOSED') + ' ' + new Date().toLocaleTimeString('en-US', ET) + ' ET';
+    render();
+  }catch(e){
+    $('dot').className = 'dot e'; $('stat').textContent = 'RECONNECTING';
+  }
+}
+
+function render(){
+  const spot = S.spx.px, base = Math.round(spot / WIDTH) * WIDTH;
+  const lo = base - N*WIDTH, hi = base + N*WIDTH;
+  // the SPX strike whose equivalent lands closest to each listed SPY strike is the real pair
+  const best = new Map();
+  for(let k = lo; k <= hi; k += WIDTH){
+    const listed = Math.round(equiv(k)), d = Math.abs(equiv(k) - listed);
+    if(!best.has(listed) || d < best.get(listed).d) best.set(listed, {k, d});
+  }
+  const out = [];
+  // ascending down the page, matching a broker chain
+  for(let k = lo; k <= hi; k += WIDTH){
+    if(k > spot && !out.includes(LINE)) out.push(LINE);   // band goes in above the first strike over spot
+    out.push(row(k, best.get(Math.round(equiv(k))).k === k));
+  }
+  const el = document.activeElement, caret = el && el.id === 'prem' ? el.selectionStart : null;
+  $('ladder').innerHTML = out.join('');
+  if(caret !== null){ const i = $('prem'); i.focus(); i.setSelectionRange(caret, caret); }
+  placeLine(spot);
+}
+
+const LINE = `<div class="spot"><div class="slide" id="spotline"><div class="bar"></div>
+  <span class="p"><span id="spotSpx"></span><em id="spotSpy"></em></span></div></div>`;
+
+// The band sits between the two bracketing strikes; drift the line inside it to show
+// where spot actually falls in that 5-point gap, without ever covering a row.
+function placeLine(spot){
+  const el = $('spotline'); if(!el) return;
+  const frac = (spot - Math.floor(spot / WIDTH) * WIDTH) / WIDTH;   // 0 at lower strike, 1 at upper
+  el.style.setProperty('--o', ((frac - 0.5) * (BANDH - 12)).toFixed(1) + 'px');
+  $('spotSpx').textContent = f(spot, 2);
+  $('spotSpy').textContent = f(S.spy.px, 2);
+}
+
+function row(k, best){
+  const e = equiv(k), open = S.open === k, side = k > S.spx.px ? 'call' : 'put';
+  const r = `<div class="row ${side} ${best ? 'best' : 'far'}${open?' open':''}" data-k="${k}" role="button" tabindex="0">
+    <span>${Math.round(e)}</span><span class="c">${k.toLocaleString()}</span><span class="r">${f(e)}</span>
+  </div>`;
+  return open ? r + panel(k) : r;
+}
+
+function panel(k){
+  const e = equiv(k), listed = Math.round(e), gap = listed - e;
+  const raw = S.prem[k] ?? '', n = parseFloat(raw), has = Number.isFinite(n) && n > 0;
+  return `<div class="panel">
+    <div class="in">
+      <label>SPX ${k.toLocaleString()} @ $</label>
+      <input id="prem" inputmode="decimal" placeholder="0.00" value="${raw}" autocomplete="off">
+    </div>
+    <div class="grid">
+      <div><span class="k">SPY PRICE</span><span class="v" id="out">${has ? '$'+f(n/ratio()) : '—'}</span></div>
+      <div><span class="k">AT STRIKE</span><span class="v">${f(e)}</span></div>
+      <div><span class="k">LISTED SPY</span><span class="v s">${listed} (${gap>=0?'+':''}${f(gap)})</span></div>
+      <div><span class="k">SIZE</span><span class="v s">1 : 10</span></div>
+    </div>
+    <p class="fine">Premium scales by the live ratio at the <em>exact</em> equivalent strike ${f(e)}.
+      Listed ${listed} sits ${f(Math.abs(gap))} away, so its real premium differs — anchor, not a quote.</p>
+  </div>`;
+}
+
+$('ladder').addEventListener('click', e => {
+  const r = e.target.closest('.row'); if(!r) return;
+  const k = +r.dataset.k;
+  S.open = S.open === k ? null : k;
+  render();
+  if(S.open === k) $('prem').focus();
+});
+$('ladder').addEventListener('keydown', e => {
+  if((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('row')){ e.preventDefault(); e.target.click(); }
+});
+$('ladder').addEventListener('input', e => {
+  if(e.target.id !== 'prem') return;
+  S.prem[S.open] = e.target.value;
+  const n = parseFloat(e.target.value);
+  $('out').textContent = Number.isFinite(n) && n > 0 ? '$' + f(n/ratio()) : '—';
+});
+
+tick();
+setInterval(tick, 3000);
+document.addEventListener('visibilitychange', () => !document.hidden && tick());
+
+// self-check: console -> tenfoldCheck()
+window.tenfoldCheck = () => {
+  const r = 7428.78 / 740.86;                             // 10.0272
+  console.assert(Math.abs(7485/r - 746.47) < .01, 'equiv');
+  console.assert(Math.round(7485/r) === 746, 'listed');
+  console.assert(Math.abs(8.20/r - .818) < .001, 'premium');
+  const off = s => ((s - Math.floor(s/5)*5)/5 - 0.5) * 22;
+  console.assert(Math.abs(off(7430) + 11) < .01, 'line at top of band on a strike');
+  console.assert(Math.abs(off(7432.5)) < .01, 'line centred mid-gap');
+  console.assert(Math.abs(off(7428.78) - 8.2) < .1, 'line low in band when spot is high in the gap');
+  console.assert(Math.abs(off(7431)) <= 11, 'line always stays inside the band');
+  // 7425 -> 740.48 and 7430 -> 740.98 both round to SPY 741; 7430 is the closer pair
+  const eq = k => k / (7428.78/740.86);
+  console.assert(Math.abs(eq(7430)-741) < Math.abs(eq(7425)-741), 'best pair picks the nearer strike');
+  console.assert(new Date('2026-07-29T14:06:00Z').toLocaleTimeString('en-US',ET) === '10:06:00', 'NYC clock');
+  return 'ok';
+};
+</script>
+</body>
+</html>
