@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-label="TENFOLD — every SPX strike in SPY terms. A strike ladder showing SPX 7430 mapped to SPY 741 at an exact equivalent of 740.98, with the live spot band at 7,428.78 and a ratio of 10.0272, not ten.">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0E1116"/>
+      <stop offset="1" stop-color="#171C25"/>
+    </linearGradient>
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5C9BFF"/>
+      <stop offset="1" stop-color="#5C9BFF" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="frame"><rect width="1200" height="360" rx="22"/></clipPath>
+    <clipPath id="card"><rect x="672" y="78" width="468" height="200" rx="16"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect width="1200" height="360" fill="url(#bg)"/>
+
+    <!-- substrate: the 5-point SPX grid the whole app is built around, receding -->
+    <g stroke="#FFFFFF" stroke-opacity="0.045" stroke-width="1.5">
+      <path d="M-20 68H1220M-20 114H1220M-20 160H1220M-20 206H1220M-20 252H1220M-20 298H1220"/>
+    </g>
+    <g stroke="#5C9BFF" stroke-opacity="0.16" stroke-width="1.5">
+      <path d="M-20 206H1220"/>
+    </g>
+    <g fill="#5C9BFF" fill-opacity="0.10">
+      <circle cx="120" cy="206" r="46"/>
+    </g>
+
+    <!-- wordmark -->
+    <g font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace">
+      <text x="72" y="132" font-size="60" font-weight="700" letter-spacing="10" fill="#FFFFFF">TENFOLD</text>
+      <rect x="75" y="154" width="132" height="3" rx="1.5" fill="url(#rule)"/>
+      <text x="74" y="242" font-size="13" font-weight="700" letter-spacing="2.6" fill="#5C9BFF" fill-opacity="0.95">0DTE STRIKE MIRROR &#183; LIVE RATIO &#183; IMPLIED-VOL PRICING</text>
+    </g>
+    <text x="74" y="200" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+          font-size="25" font-weight="500" fill="#AEB6C4">Every SPX strike, in SPY terms.</text>
+
+    <!-- the correction the whole thing exists for -->
+    <g font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace">
+      <rect x="72" y="286" width="196" height="34" rx="17" fill="#FFFFFF" fill-opacity="0.07"/>
+      <text x="90" y="308" font-size="14" font-weight="600" fill="#767E8B">&#247; 10</text>
+      <path d="M132 302h20m-6-5 6 5-6 5" stroke="#5C9BFF" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="164" y="308" font-size="14" font-weight="700" fill="#5C9BFF">&#247; 10.0272</text>
+    </g>
+
+    <!-- a slice of the real ladder, drawn exactly as the app draws it -->
+    <g clip-path="url(#card)" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace">
+      <rect x="672" y="78" width="468" height="200" fill="#1B1F27"/>
+
+      <!-- header -->
+      <rect x="851" y="78" width="110" height="30" fill="#2B313B"/>
+      <g font-size="9.5" font-weight="700" letter-spacing="1.4" fill="#767E8B">
+        <text x="690" y="97">SPY STRIKE</text>
+        <text x="906" y="97" fill="#F4F6F9" text-anchor="middle">SPX STRIKE</text>
+        <text x="1122" y="97" text-anchor="end">SPY EXACT EQUIV</text>
+      </g>
+      <line x1="672" y1="108" x2="1140" y2="108" stroke="#2E333C"/>
+
+      <!-- below spot: puts -->
+      <rect x="672" y="108" width="468" height="34" fill="#2A1E20"/>
+      <rect x="672" y="142" width="468" height="34" fill="#2A1E20"/>
+      <!-- above spot: calls -->
+      <rect x="672" y="202" width="468" height="34" fill="#1A2A24"/>
+      <rect x="672" y="236" width="468" height="34" fill="#1A2A24"/>
+      <rect x="851" y="108" width="110" height="170" fill="#2B313B"/>
+
+      <g font-size="17" font-weight="500" fill="#EEF1F5">
+        <!-- 7420 is the closer pair for SPY 740; 7425 also rounds there, so it dims -->
+        <text x="690" y="131" font-weight="700">740</text>
+        <circle cx="726" cy="126" r="2.5" fill="#5C9BFF"/>
+        <text x="906" y="131" font-weight="600" font-size="17.5" fill="#F4F6F9" text-anchor="middle">7,420</text>
+        <text x="1122" y="131" fill="#A3AAB6" text-anchor="end">739.98</text>
+
+        <g opacity="0.42">
+          <text x="690" y="165">740</text>
+          <text x="1122" y="165" fill="#A3AAB6" text-anchor="end">740.48</text>
+        </g>
+        <text x="906" y="165" font-weight="600" font-size="17.5" fill="#F4F6F9" text-anchor="middle">7,425</text>
+
+        <text x="690" y="225" font-weight="700">741</text>
+        <circle cx="726" cy="220" r="2.5" fill="#5C9BFF"/>
+        <text x="906" y="225" font-weight="600" font-size="17.5" fill="#F4F6F9" text-anchor="middle">7,430</text>
+        <text x="1122" y="225" fill="#A3AAB6" text-anchor="end">740.98</text>
+
+        <g opacity="0.42">
+          <text x="690" y="259">741</text>
+          <text x="1122" y="259" fill="#A3AAB6" text-anchor="end">741.48</text>
+        </g>
+        <text x="906" y="259" font-weight="600" font-size="17.5" fill="#F4F6F9" text-anchor="middle">7,435</text>
+      </g>
+
+      <!-- the spot band, sitting in its own reserved height so it covers no row -->
+      <rect x="672" y="176" width="468" height="26" fill="#1B1F27"/>
+      <line x1="672" y1="176" x2="1140" y2="176" stroke="#252A32"/>
+      <line x1="672" y1="202" x2="1140" y2="202" stroke="#252A32"/>
+      <line x1="672" y1="190.5" x2="1140" y2="190.5" stroke="#5C9BFF" stroke-width="1.5"/>
+      <rect x="819" y="178" width="174" height="26" rx="13" fill="#5C9BFF" stroke="#1B1F27" stroke-width="3"/>
+      <text x="833" y="196" font-size="13" font-weight="700" fill="#FFFFFF">7,428.78</text>
+      <text x="905" y="196" font-size="11.5" font-weight="600" fill="#FFFFFF" fill-opacity="0.62">740.86</text>
+      <line x1="956" y1="184" x2="956" y2="198" stroke="#FFFFFF" stroke-opacity="0.35"/>
+      <text x="965" y="196" font-size="11.5" font-weight="600" fill="#FFFFFF" fill-opacity="0.5">3s</text>
+    </g>
+    <rect x="672.5" y="78.5" width="467" height="199" rx="16" fill="none" stroke="#FFFFFF" stroke-opacity="0.10"/>
+
+    <rect x="0.5" y="0.5" width="1199" height="359" rx="22" fill="none" stroke="#FFFFFF" stroke-opacity="0.09"/>
+  </g>
+</svg>

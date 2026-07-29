@@ -485,7 +485,7 @@ window.tenfoldCheck = () => {
   const off = s => ((s - Math.floor(s/5)*5)/5 - 0.5) * 22;
   console.assert(Math.abs(off(7430) + 11) < .01, 'line at top of band on a strike');
   console.assert(Math.abs(off(7432.5)) < .01, 'line centred mid-gap');
-  console.assert(Math.abs(off(7428.78) - 8.2) < .1, 'line low in band when spot is high in the gap');
+  console.assert(Math.abs(off(7428.78) - 5.63) < .01, 'line low in band when spot is high in the gap');
   console.assert(Math.abs(off(7431)) <= 11, 'line always stays inside the band');
   // 7425 -> 740.48 and 7430 -> 740.98 both round to SPY 741; 7430 is the closer pair
   const eq = k => k / (7428.78/740.86);
