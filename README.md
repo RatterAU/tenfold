@@ -20,7 +20,7 @@ SPY is not SPX ÷ 10, and on 0DTE that difference is a whole strike.
 
 <br>
 
-![One file](https://img.shields.io/badge/one_file-27_KB-0B1B33?style=flat-square)
+![One file](https://img.shields.io/badge/one_file-28_KB-0B1B33?style=flat-square)
 ![No dependencies](https://img.shields.io/badge/dependencies-none-1F7A4D?style=flat-square)
 ![No build](https://img.shields.io/badge/build_step-none-1F7A4D?style=flat-square)
 ![MIT](https://img.shields.io/badge/licence-MIT-555?style=flat-square)
@@ -69,7 +69,7 @@ TENFOLD does the division for you, against the live ratio, continuously.
 
 ## Reading the screen
 
-**Strikes ascend** down the page, the way a broker chain reads. **Green above spot, red below**, so the side you are on is legible from across the room. **DEPTH** sets how many strikes sit each side of spot, anywhere from ±5 to ±50. The ladder scrolls, keeps spot centred, and remembers your choice.
+**Strikes ascend** down the page, the way a broker chain reads. **Green above spot, red below**, so the side you are on is legible from across the room. **DEPTH** sets how many strikes sit each side of spot, anywhere from ±5 to ±50. The ladder scrolls, centres on spot when it loads or when you change depth, and remembers your choice.
 
 Every quote carries **how old the exchange says the print is**: `2s ago` under a live tick, amber once it drifts past 30 seconds, hours when the market is shut. The **spot band carries its own age too**, because that is the number people actually read. A figure that stopped updating should say so rather than sit there looking current.
 
@@ -125,7 +125,7 @@ Because nothing free is fast enough to deserve them.
 
 No public feed quotes options faster than once per second. Yahoo's chain is delayed and only refreshes on request. Everything genuinely real-time (Polygon, Tradier, CBOE, broker APIs) is keyed and paid. Painting delayed numbers in a layout that implies they are live is worse than showing nothing, so TENFOLD shows strikes.
 
-Spot for SPX and SPY refreshes every 3 seconds and is near-real-time.
+Spot for SPX and SPY refreshes every 3 seconds and is near-real-time. If the relay starts refusing, the poll backs off rather than hammering it, and the status line tells you how long until the next try.
 
 Want real option prices? Replace `quote()` in `index.html` with a keyed feed. It is the only function that touches the network.
 
@@ -139,16 +139,16 @@ open index.html
 
 That is the whole setup. No build, no dependencies, no package.json. Serve it with `python3 -m http.server 8000` if you would rather, or drop `index.html` on any static host.
 
-Sanity-check the maths anytime: open the console and run `tenfoldCheck()`. It asserts the strike mapping, the best-pair choice, the spot-line geometry, the normal CDF, an implied-vol round trip, the slope signs, and that the estimate never escapes its bound.
+Sanity-check the maths anytime: open the console and run `tenfoldCheck()`. It asserts the strike mapping, the best-pair choice, the spot-line geometry, the normal CDF, an implied-vol round trip, the slope signs, the poll backoff schedule, and that the estimate never escapes its bound.
 
 ## Under the hood
 
 | | |
 |---|---|
-| **Size** | one file, ~27 KB, zero dependencies |
-| **Data** | Yahoo Finance chart endpoint (`^GSPC`, `SPY`), 3s poll |
-| **Ladder** | ±5 to ±50 strikes, 5-point SPX grid, spot kept centred |
-| **SPY grid** | $1 strikes |
+| **Size** | one file, ~28 KB, zero dependencies |
+| **Data** | Yahoo Finance chart endpoint (`^GSPC`, `SPY`), 3s poll, backs off to 30s on failure |
+| **Ladder** | ±5 to ±50 strikes, 5-point SPX grid, spot centred on load |
+| **SPY grid** | $1 strikes, which is what SPY 0DTE actually lists near the money |
 | **Pricing** | exact ratio scaling, plus Black-Scholes implied vol for the listed-strike step |
 | **Clock** | America/New_York, DST handled |
 | **Theme** | light and dark, remembered in localStorage |
@@ -156,7 +156,11 @@ Sanity-check the maths anytime: open the console and run `tenfoldCheck()`. It as
 
 Change `WIDTH` at the top of the script for a different SPX strike spacing. The ladder HTML is diffed between polls, so a tick that changes nothing skips the re-render entirely.
 
-**On the CORS relay.** Yahoo sends no CORS headers, so the browser reaches it through a public relay: `cors.lol`, then `cors.sh`, then `allorigins`, failing over automatically. Those are free, rate-limited, and run by strangers. Fine for personal use. If this ever picks up real traffic they will throttle it and the app will sit on RECONNECTING. The fix is a small Cloudflare Worker proxying Yahoo, then point `RELAYS` at it. The free tier covers far more than this needs.
+**On the CORS relay.** Yahoo sends no CORS headers, so the browser reaches it through a public relay: `cors.lol`, then `cors.sh`, then `allorigins`, failing over automatically. Those are free, rate-limited, and run by strangers. Fine for personal use.
+
+A failed poll costs eight requests, two symbols across four relays. At a fixed 3s that is 160 a minute into a service that already said no, which is how you stay throttled once you trip it. So the poll doubles its interval on each failure up to 30 seconds and snaps back to 3s on the first good tick. Returning to the tab retries immediately.
+
+If this ever picks up real traffic the relays will throttle it regardless. The fix is a small Cloudflare Worker proxying Yahoo, then point `RELAYS` at it. The free tier covers far more than this needs.
 
 ## What this is not
 

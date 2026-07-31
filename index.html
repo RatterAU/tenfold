@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
-<meta name="color-scheme" content="light">
+<meta name="color-scheme" content="light dark">
 <title>TENFOLD</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230b0c0f'/><text x='16' y='23' font-family='monospace' font-size='19' fill='%23fff' text-anchor='middle'>10</text></svg>">
 <style>
@@ -159,7 +159,7 @@
       <span class="m">strikes each side</span></div>
   </div>
 
-  <div class="warn" id="warn"><span>⚠</span><span id="warnT"></span></div>
+  <div class="warn" id="warn" role="status"><span>⚠</span><span id="warnT"></span></div>
 
   <div class="chain">
     <div class="hd"><span>SPY STRIKE</span><span class="c">SPX STRIKE</span><span class="r">SPY EXACT EQUIV</span></div>
@@ -217,6 +217,7 @@ function paint(k, q, prev){
     v.classList.remove('up','dn'); void v.offsetWidth;
     v.classList.add(q.px > prev ? 'up' : 'dn');
   }
+  if(!Number.isFinite(q.prev)){ c.className = ''; c.textContent = ''; return; }  // no close, no change line
   const d = q.px - q.prev, u = d >= 0;
   c.className = u ? 'u' : 'd';
   c.textContent = `${u?'+':''}${f(d)}  ${u?'+':''}${f(d/q.prev*100)}%`;
@@ -239,7 +240,15 @@ function ages(){
   if(el && S.spx?.t){ const s = secsOld(S.spx); el.textContent = said(s); el.classList.toggle('stale', s > 30); }
 }
 
+// A failing poll costs 8 requests (2 symbols x 4 relays). At a fixed 3s that is 160/min into a
+// free relay, which is how you stay rate-limited once you trip it. So: one tick at a time, and
+// back off until the relay forgives us. 3s, 6s, 12s, 24s, 30s cap.
+let busy = false, fails = 0;
+const backoff = () => 3000 * Math.min(2 ** fails, 10);
+
 async function tick(){
+  if(busy) return;                             // interval and visibilitychange both call this
+  busy = true;
   try{
     const a = S.spx?.px, b = S.spy?.px;
     const [spx, spy] = await Promise.all([quote('^GSPC'), quote('SPY')]);
@@ -259,12 +268,15 @@ async function tick(){
       so converted premiums will not match your broker. Set RATIO by hand to calibrate against a
       strike you can see on both.`;
     render();
+    fails = 0;
   }catch(e){
-    $('dot').className = 'dot e'; $('stat').textContent = 'RECONNECTING';
-  }
+    fails++;
+    $('dot').className = 'dot e';
+    $('stat').textContent = 'RECONNECTING ' + Math.round(backoff()/1000) + 's';
+  }finally{ busy = false; }
 }
 
-// user picks the depth; ladder scrolls and keeps spot centred on load and on resize
+// user picks the depth; ladder scrolls and centres on spot once, on load
 const fitN = () => +$('n').value;
 
 let lastHTML = '', centred = false;
@@ -405,7 +417,8 @@ function panel(k){
 }
 
 function note(o){
-  const head = `Not a flat &divide;10. SPY trails SPX by accrued dividends (live ratio ${f(ratio(),4)}), and
+  const head = `Not a flat &divide;10. SPY trails SPX by accrued dividends
+    (${S.rOv != null ? 'manual' : 'live'} ratio ${f(ratio(),4)}), and
     SPX's 5-point grid puts this strike ${f(Math.abs(o.gap))} off the nearest listed SPY strike.`;
   if(o.spy == null) return head;
   const tail = o.est != null
@@ -440,6 +453,7 @@ $('ladder').addEventListener('input', e => {
 
 const theme = t => {
   document.documentElement.dataset.theme = t;
+  document.documentElement.style.colorScheme = t;   // else the native select popup stays white in dark
   document.querySelector('meta[name=theme-color]').content = t === 'dark' ? '#181b21' : '#ffffff';
   $('theme').textContent = t === 'dark' ? '☀' : '◐';
   localStorage.tenfoldTheme = t;
@@ -472,10 +486,10 @@ $('n').onchange = () => { localStorage.tenfoldN = $('n').value; centred = false;
 theme(localStorage.tenfoldTheme || 'light');
 $('theme').onclick = () => theme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
 
-tick();
-setInterval(tick, 3000);
+// no resize handler: nothing in render() reads the viewport since the depth picker landed, and
+// iOS fires resize when the URL bar collapses, so re-centring there just yanked the page mid-scroll
+(function poll(){ tick().finally(() => setTimeout(poll, backoff())); })();
 setInterval(ages, 1000);
-addEventListener('resize', () => { if(S.spx){ render(); centre(); } });
 document.addEventListener('visibilitychange', () => !document.hidden && tick());
 
 // self-check: console -> tenfoldCheck()
@@ -520,6 +534,12 @@ window.tenfoldCheck = () => {
   console.assert(slope(7428.78, 7405, 0.01, true, 3*3600) === null, 'unsolvable premium falls back');
   console.assert(slope(7428.78, 7405, 20, true, null) === null, 'after the close, bound only');
   console.assert(document.querySelectorAll('.row').length % 2 === 1, 'symmetric ladder: 2N+1 strikes');
+  // poll backs off while the relay is angry, and snaps straight back on the first good tick
+  const kf = fails;
+  fails = 0; console.assert(backoff() === 3000, 'healthy poll stays at 3s');
+  fails = 1; console.assert(backoff() === 6000, 'first failure doubles');
+  fails = 9; console.assert(backoff() === 30000, 'backoff caps at 30s');
+  fails = kf;
   return 'ok';
 };
 </script>
