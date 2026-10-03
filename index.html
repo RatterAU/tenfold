@@ -168,38 +168,30 @@
 
   <p class="foot">Green above spot, red below. Tap a strike to price it. Two SPX strikes can round to one
      SPY strike; the dotted row is the closer pair, the dimmed one the looser. No option prices: no free
-     feed quotes them. Quotes via Yahoo, 3s poll; verify on your broker.</p>
+     feed quotes them. Quotes via CNBC, 3s poll; verify on your broker.</p>
 </main>
 
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const YQ = s => `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(s)}?interval=1m&range=1d`;
-// Yahoo sends no CORS headers, so relay chain with failover.
-const RELAYS = [
-  u => `https://api.cors.lol/?url=${encodeURIComponent(u)}`,
-  u => `https://proxy.cors.sh/${u}`,
-  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  u => u,
-];
-let relay = 0;
+// CNBC's quote service sends CORS headers, so a plain local file can read it directly.
+// The public Yahoo relays this used to lean on all died (rate-limited, NXDOMAIN, 5xx).
+const CQ = s => `https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol?symbols=${encodeURIComponent(s)}&requestMethod=itv&noform=1&partnerId=2&fund=1&exthrs=1&output=json`;
+const SYM = {'^GSPC':'.SPX', SPY:'SPY'};
+const ST = {REG_MKT:'REGULAR', PRE_MKT:'PRE', POST_MKT:'POST'};
+const num = v => parseFloat(String(v).replace(/,/g,''));
 
 const WIDTH = 5, ROWH = 46, BANDH = 34;  // SPX grid spacing, row height, spot band height (px)
 const ET = {timeZone:'America/New_York', hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'};
 const S = {spx:null, spy:null, open:null, prem:{}};
 
 async function quote(sym){
-  for(let i=0;i<RELAYS.length;i++){
-    const r = RELAYS[(relay+i)%RELAYS.length];
-    try{
-      const m = (await (await fetch(r(YQ(sym)),{cache:'no-store'})).json()).chart.result[0].meta;
-      if(typeof m.regularMarketPrice !== 'number') throw 0;
-      relay = (relay+i)%RELAYS.length;
-      return {px:m.regularMarketPrice, prev:m.chartPreviousClose ?? m.previousClose, st:m.marketState,
-              t:(m.regularMarketTime ?? 0) * 1000};
-    }catch(e){}
-  }
-  throw 0;
+  const q = (await (await fetch(CQ(SYM[sym]),{cache:'no-store'})).json()).FormattedQuoteResult.FormattedQuote[0];
+  const px = num(q.last), prev = num(q.previous_day_closing);
+  if(isNaN(px)) throw 0;
+  // last_time is "2026-09-23T09:47:32.000-0400"; Safari wants the offset as -04:00
+  return {px, prev: isNaN(prev) ? undefined : prev, st: ST[q.curmktstatus] || 'CLOSED',
+          t: Date.parse(String(q.last_time).replace(/([+-]\d\d)(\d\d)$/, '$1:$2')) || 0};
 }
 
 const f = (n,d=2) => n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -240,9 +232,8 @@ function ages(){
   if(el && S.spx?.t){ const s = secsOld(S.spx); el.textContent = said(s); el.classList.toggle('stale', s > 30); }
 }
 
-// A failing poll costs 8 requests (2 symbols x 4 relays). At a fixed 3s that is 160/min into a
-// free relay, which is how you stay rate-limited once you trip it. So: one tick at a time, and
-// back off until the relay forgives us. 3s, 6s, 12s, 24s, 30s cap.
+// Hammering a free feed at a fixed 3s while it refuses is how you stay rate-limited. So: one tick
+// at a time, and back off until the feed forgives us. 3s, 6s, 12s, 24s, 30s cap.
 let busy = false, fails = 0;
 const backoff = () => 3000 * Math.min(2 ** fails, 10);
 
@@ -255,7 +246,7 @@ async function tick(){
     S.spx = spx; S.spy = spy;
     paint('spx', spx, a); paint('spy', spy, b);
     ages(); showRatio();
-    // marketState lags reality on the relays (still says PRE/CLOSED while prints roll in), so
+    // market status can lag reality (still says PRE/CLOSED while prints roll in), so
     // trust the prints: both legs quoting inside the last two minutes means the session is open.
     const live = Math.max(secsOld(spx), secsOld(spy)) < 120 || spy.st === 'REGULAR';
     $('dot').className = 'dot' + (live ? '' : ' w');
@@ -534,7 +525,7 @@ window.tenfoldCheck = () => {
   console.assert(slope(7428.78, 7405, 0.01, true, 3*3600) === null, 'unsolvable premium falls back');
   console.assert(slope(7428.78, 7405, 20, true, null) === null, 'after the close, bound only');
   console.assert(document.querySelectorAll('.row').length % 2 === 1, 'symmetric ladder: 2N+1 strikes');
-  // poll backs off while the relay is angry, and snaps straight back on the first good tick
+  // poll backs off while the feed is angry, and snaps straight back on the first good tick
   const kf = fails;
   fails = 0; console.assert(backoff() === 3000, 'healthy poll stays at 3s');
   fails = 1; console.assert(backoff() === 6000, 'first failure doubles');
