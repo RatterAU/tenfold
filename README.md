@@ -125,7 +125,7 @@ Because nothing free is fast enough to deserve them.
 
 No public feed quotes options faster than once per second. Yahoo's chain is delayed and only refreshes on request. Everything genuinely real-time (Polygon, Tradier, CBOE, broker APIs) is keyed and paid. Painting delayed numbers in a layout that implies they are live is worse than showing nothing, so TENFOLD shows strikes.
 
-Spot for SPX and SPY refreshes every 3 seconds and is near-real-time. If the relay starts refusing, the poll backs off rather than hammering it, and the status line tells you how long until the next try.
+Spot for SPX and SPY refreshes every 3 seconds and is near-real-time. If the feed starts refusing, the poll backs off rather than hammering it, and the status line tells you how long until the next try.
 
 Want real option prices? Replace `quote()` in `index.html` with a keyed feed. It is the only function that touches the network.
 
@@ -145,8 +145,8 @@ Sanity-check the maths anytime: open the console and run `tenfoldCheck()`. It as
 
 | | |
 |---|---|
-| **Size** | one file, ~28 KB, zero dependencies |
-| **Data** | Yahoo Finance chart endpoint (`^GSPC`, `SPY`), 3s poll, backs off to 30s on failure |
+| **Size** | one file, ~29 KB, zero dependencies |
+| **Data** | CNBC quote service (`.SPX`, `SPY`), 3s poll, backs off to 30s on failure |
 | **Ladder** | ±5 to ±50 strikes, 5-point SPX grid, spot centred on load |
 | **SPY grid** | $1 strikes, which is what SPY 0DTE actually lists near the money |
 | **Pricing** | exact ratio scaling, plus Black-Scholes implied vol for the listed-strike step |
@@ -156,11 +156,9 @@ Sanity-check the maths anytime: open the console and run `tenfoldCheck()`. It as
 
 Change `WIDTH` at the top of the script for a different SPX strike spacing. The ladder HTML is diffed between polls, so a tick that changes nothing skips the re-render entirely.
 
-**On the CORS relay.** Yahoo sends no CORS headers, so the browser reaches it through a public relay: `cors.lol`, then `cors.sh`, then `allorigins`, failing over automatically. Those are free, rate-limited, and run by strangers. Fine for personal use.
+**On the data feed.** Spot comes from CNBC's public quote service, which sends CORS headers, so the page reads it directly: no relay, no proxy, no key. It is free and unofficial, so treat it as fine for personal use.
 
-A failed poll costs eight requests, two symbols across four relays. At a fixed 3s that is 160 a minute into a service that already said no, which is how you stay throttled once you trip it. So the poll doubles its interval on each failure up to 30 seconds and snaps back to 3s on the first good tick. Returning to the tab retries immediately.
-
-If this ever picks up real traffic the relays will throttle it regardless. The fix is a small Cloudflare Worker proxying Yahoo, then point `RELAYS` at it. The free tier covers far more than this needs.
+The poll runs one tick at a time. If the feed refuses, the interval doubles on each failure up to 30 seconds and snaps back to 3s on the first good tick, rather than hammering a service that already said no. Returning to the tab retries immediately.
 
 ## What this is not
 
