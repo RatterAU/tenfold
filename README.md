@@ -10,6 +10,15 @@ SPY is not SPX ÷ 10, and on 0DTE that difference is a whole strike.
 
 <br>
 
+<picture>
+  <source srcset="https://github.com/RatterAU/tenfold/raw/main/docs/promo/tenfold-film.avif" type="image/avif">
+  <img src="docs/promo/tenfold-film.jpg" width="100%" alt="TENFOLD in 41 seconds, filmed on the real page. SPX 7,430 divided by ten says SPY 743; at the real ratio of 10.0276 it is 741. The page runs live: SPX and SPY tiles tick every three seconds, each print showing its age, and the RATIO tile shows the live spot ratio rather than ten. The strike ladder mirrors every SPX strike in SPY terms, and the spot band crosses the 7,430 strike on camera. SPX 7,420 and 7,425 both round to SPY 740; the blue dot marks the real pair and its twin is dimmed. Tap 7,425 and type 8.20: $0.82 at the exact equivalent strike, about $0.62 at the listed SPY 740, from an implied vol near 15.8 percent. Light and dark. No install, no signup, no key.">
+</picture>
+
+<sub>Filmed on the real page with the market shut, so the quotes are a simulated session: every number on screen is TENFOLD's own maths · [download it with sound](docs/promo/tenfold-film.mp4) (MP4, 1080p)</sub>
+
+<br>
+
 ## Try it now
 
 ### <a href="https://ratterau.github.io/tenfold/">https://ratterau.github.io/tenfold/</a>
